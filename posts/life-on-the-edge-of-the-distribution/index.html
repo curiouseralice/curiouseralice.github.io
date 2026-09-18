@@ -1,0 +1,1413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Life on the Edge of the Distribution &mdash; Field Notes</title>
+<meta name="description" content="Diffusion policies, world models, and the energy view of robust robot control &mdash; why acting became sampling, what a world model buys a policy, and the layered runtime that keeps a humanoid standing.">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --ink: #1c1a17;
+    --muted: #6f6a62;
+    --faint: #a7a29a;
+    --line: #e4e1db;
+    --paper: #ffffff;
+    --link: #0f6d8c;
+    --coral: #ef8677;
+    --coral-soft: #fbd9d2;
+    --amber: #f2a93b;
+    --amber-soft: #fbe8c8;
+    --teal: #4fb3bf;
+    --teal-soft: #d7edef;
+    --lilac: #a78bdb;
+    --lilac-soft: #e9e1f7;
+    --cream: #fdf4e4;
+    --gray-block: #dcdcdc;
+    --gray-block-lt: #ececec;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--serif);
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.72;
+    font-size: 18px;
+    margin: 0;
+    padding: 0 1.25rem;
+  }
+  .wrap { max-width: 42.5rem; margin: 0 auto; padding: 3.5rem 0 6rem; }
+  header.post-head { margin-bottom: 2.6rem; }
+  h1.post-title {
+    font-size: 2.05rem;
+    line-height: 1.22;
+    margin: 0 0 0.9rem;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .dek { font-style: italic; color: var(--muted); font-size: 1.02rem; line-height: 1.5; margin-top: 0.55rem; }
+  h2 { font-size: 1.42rem; line-height: 1.3; margin: 3.1rem 0 0.9rem; letter-spacing: -0.008em; text-wrap: balance; }
+  h3 { font-size: 1.12rem; line-height: 1.35; margin: 2.2rem 0 0.7rem; text-wrap: balance; }
+  h2 .sec-no, h3 .sec-no { color: var(--faint); font-weight: 400; margin-right: 0.45em; font-variant-numeric: tabular-nums; }
+  p { margin: 0 0 1.05rem; }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid rgba(15,109,140,0.28); }
+  a:hover { border-bottom-color: var(--link); }
+  a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 2px; }
+  strong { font-weight: 700; }
+  em.term { font-style: italic; }
+  code, .mono { font-family: var(--mono); font-size: 0.86em; }
+  code.chip { background: #f4f2ee; border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; white-space: nowrap; }
+
+  /* table of contents */
+  nav.toc {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.4rem 1.15rem;
+    margin: 2rem 0 2.4rem;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    background: #fcfbf9;
+  }
+  nav.toc .toc-title {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+  nav.toc ol { margin: 0; padding-left: 1.2rem; }
+  nav.toc ol ol { margin-top: 0.15rem; }
+  nav.toc li { margin: 0.22rem 0; }
+  nav.toc a { border-bottom: none; }
+  nav.toc a:hover { border-bottom: 1px solid var(--link); }
+
+  /* figures */
+  figure.fig { margin: 2.1rem 0 2.3rem; }
+  figure.fig .fig-scroll { overflow-x: auto; }
+  figure.fig svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  figure.fig figcaption {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0.85rem auto 0;
+    max-width: 36rem;
+    text-align: center;
+  }
+  figure.fig figcaption .figno { font-family: var(--mono); font-size: 0.78rem; color: var(--ink); font-weight: 600; }
+
+  /* equations */
+  .eq {
+    text-align: center;
+    margin: 1.35rem 0;
+    font-size: 1.02rem;
+    line-height: 1.9;
+    overflow-x: auto;
+    padding: 0.1rem 0;
+  }
+  .eq .m, em.m { font-style: italic; }
+  .m { font-family: var(--serif); }
+  sub, sup { font-size: 0.68em; line-height: 0; }
+
+  /* tables */
+  .tbl-scroll { overflow-x: auto; margin: 1.6rem 0 1.9rem; }
+  table.tbl { border-collapse: collapse; font-size: 0.86rem; line-height: 1.5; min-width: 100%; }
+  table.tbl th, table.tbl td { border: 1px solid var(--line); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+  table.tbl th { background: #f7f5f1; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  table.tbl td .name { font-weight: 700; }
+  table.tbl td { font-variant-numeric: tabular-nums; }
+
+  /* callouts & quotes */
+  blockquote {
+    margin: 1.5rem 0;
+    padding: 0.15rem 0 0.15rem 1.15rem;
+    border-left: 3px solid var(--teal);
+    color: #3d3a35;
+    font-size: 0.97rem;
+  }
+  blockquote p { margin-bottom: 0.55rem; }
+  .aside {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.6rem 0;
+    font-size: 0.93rem;
+    line-height: 1.62;
+  }
+  .aside .aside-tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: #b07c22; display: block; margin-bottom: 0.35rem; }
+
+  /* lists */
+  ul, ol { padding-left: 1.35rem; margin: 0 0 1.1rem; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--faint); }
+
+  /* footnotes & references */
+  .refs { font-size: 0.84rem; line-height: 1.6; }
+  .refs ol { padding-left: 1.6rem; }
+  .refs li { margin: 0.5rem 0; }
+  .fn { font-size: 0.72em; vertical-align: super; line-height: 0; font-family: var(--mono); }
+  .footnotes { font-size: 0.84rem; color: #4a463f; border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; }
+  .footnotes p { margin-bottom: 0.5rem; }
+  pre.bibtex {
+    background: #f7f5f1;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    line-height: 1.55;
+    overflow-x: auto;
+  }
+  .tags { margin-top: 3rem; font-family: var(--mono); font-size: 0.76rem; color: var(--muted); }
+  .tags span { border: 1px solid var(--line); border-radius: 999px; padding: 0.18rem 0.65rem; margin-right: 0.4rem; white-space: nowrap; display: inline-block; margin-bottom: 0.4rem; }
+  hr.sect { border: none; border-top: 1px solid var(--line); margin: 3rem auto; width: 38%; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16.5px; }
+    h1.post-title { font-size: 1.62rem; }
+    h2 { font-size: 1.28rem; }
+  }
+
+  /* --- site chrome --- */
+  .site-top { max-width: 42.5rem; margin: 0 auto; padding-top: 1.5rem; font-family: var(--mono); font-size: 0.78rem; }
+  .site-top a { color: var(--muted); border-bottom: none; }
+  .site-top a:hover { color: var(--link); }
+  footer.site-foot { max-width: 42.5rem; margin: -2.5rem auto 0; padding: 1.4rem 0 2.6rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.72rem; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  footer.site-foot a { color: var(--muted); border-bottom-color: var(--line); }
+</style>
+</head>
+<body>
+<nav class="site-top"><a href="../../">&larr; Field Notes</a></nav>
+<div class="wrap">
+<header class="post-head">
+  <h1 class="post-title">Life on the Edge of the Distribution</h1>
+  <div class="meta">Date: September 10, 2026 &nbsp;|&nbsp; Estimated Reading Time: ~55 min &nbsp;|&nbsp; Author: Alice Xu</div>
+  <div class="dek">Diffusion policies, world models, and what it takes to keep a humanoid standing.</div>
+</header>
+
+<svg aria-hidden="true" style="position:absolute;width:0;height:0" focusable="false">
+  <defs>
+    <marker id="ah-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#9a968f"></path>
+    </marker>
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#2b2926"></path>
+    </marker>
+    <marker id="ah-coral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#ef8677"></path>
+    </marker>
+    <marker id="ah-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#4fb3bf"></path>
+    </marker>
+    <marker id="ah-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#e09a2b"></path>
+    </marker>
+    <marker id="ah-lilac" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0.8 L9,5 L0,9.2 Z" fill="#a78bdb"></path>
+    </marker>
+  </defs>
+</svg>
+<style>
+  /* shared svg figure classes */
+  .svL { font-family: var(--mono); font-size: 13px; fill: #1c1a17; }
+  .svLs { font-family: var(--mono); font-size: 11.5px; fill: #1c1a17; }
+  .svN { font-family: var(--mono); font-size: 10.5px; fill: #9a958d; letter-spacing: 0.08em; }
+  .svT { font-family: var(--mono); font-size: 14px; fill: #1c1a17; font-weight: 700; }
+  .svBox { fill: #ffffff; stroke: #2b2926; stroke-width: 2; }
+  .svBlk { fill: #dcdcdc; }
+  .svBlkLt { fill: #ececec; }
+  .svArr { stroke: #9a968f; stroke-width: 1.8; fill: none; }
+  .svArrI { stroke: #2b2926; stroke-width: 1.8; fill: none; }
+  .svCoral { fill: #ef8677; }
+  .svCoralSoft { fill: #fbd9d2; }
+  .svAmber { fill: #f2a93b; }
+  .svAmberSoft { fill: #fbe8c8; }
+  .svTeal { fill: #4fb3bf; }
+  .svTealSoft { fill: #d7edef; }
+  .svLilac { fill: #a78bdb; }
+  .svLilacSoft { fill: #e9e1f7; }
+  .svCream { fill: #fdf4e4; }
+</style>
+
+<p>Sometime in the last three years, robot learning quietly converged on a single verb: <strong>sample</strong>. The policies that fold your laundry no longer compute an action; they draw one from a learned distribution, usually by running a denoiser for a few steps. The models that let robots rehearse no longer predict a feature vector; they generate whole futures, frame by frame or latent by latent. The two halves even share machinery &#8212; the same diffusion and flow-matching backbones, the same guidance tricks, increasingly the same weights. This post is an attempt to read that convergence carefully: what it actually buys, what it quietly costs, and what it means for the robots that have the least room for error &#8212; humanoids, which fall over.</p>
+
+<p>Three inputs shaped what follows. The first is the literature itself, worked through end to end &#8212; several hundred papers across diffusion policies, diffusion models in reinforcement learning, and world models for robot policy learning; I will cite the ones that carry load and gesture honestly at the long tail. The second input is a long conversation with humanoid-robotics researchers about energy-based reinforcement learning, stability, and why policies that work beautifully in distribution shatter a few centimeters outside it &#8212; several of that evening&rsquo;s claims get stress-tested against the literature below, and not all of them survive. The third is deployment scar tissue: our own work runs a Unitree G1 on a stack of exactly the kind this post dissects, and I have watched most of the failure modes described here happen on a real floor, at real replanning rates, with a real e-stop in hand.</p>
+
+<p>This is also, in a sense, the prequel to a <a href="../learning-on-the-job/">companion post</a> on test-time adaptation and self-improving robots. That post asks how a deployed policy gets <em>better</em>; it takes the policy itself mostly as given. Here I ask what the policy <em>is</em> &#8212; and what the model of the world next to it is &#8212; because the answers turn out to determine which improvement loops, safety architectures, and monitoring signals are even available to you.</p>
+
+<p>Three questions organize the post:</p>
+
+<ul>
+  <li><strong>Why did acting become sampling?</strong> There is a precise, almost boring statistical reason (&#167;1&#8211;2), and an energy-based way of seeing it that unifies implicit policies, diffusion, and flow matching &#8212; and that survives contact with the literature only if you carry two specific asterisks (&#167;2.2, &#167;5.3).</li>
+  <li><strong>What does a world model buy a policy?</strong> Not one thing but six &#8212; features, planning substrate, dream gym, evaluator, data engine, test-time verifier &#8212; each with a different tolerance for the model being wrong (&#167;4).</li>
+  <li><strong>What does any of this do for robustness?</strong> The popular intuition says a generative policy knows its own distribution, so it should know when it is out of it. The evidence says something more interesting and less flattering (&#167;5), and the systems that actually work on humanoid hardware have converged on an architecture that treats the sampler as one layer among four (&#167;5.4, &#167;6).</li>
+</ul>
+
+<p>Throughout, one lens does most of the unifying work. Write a policy as a Boltzmann distribution, <em class="m">p(a|o) &#8733; e<sup>&#8722;E(o,a)</sup></em>, and nearly every object in this post becomes an operation on the energy <em class="m">E</em>: imitation learns it, diffusion learns its gradient at many noise levels, critics add <em class="m">&#8722;Q</em> to it, guidance sums task and safety terms onto it, world models let you evaluate it before the world does, and out-of-distribution detection asks &#8212; too optimistically, it turns out &#8212; whether its value is large. The lens is genuinely useful. It is also where the sloppiest claims in this area live, so part of the job here is to mark exactly where the metaphor stops being math.</p>
+
+<nav class="toc">
+<div class="toc-title">Table of Contents</div>
+<ol>
+  <li><a href="#actions">The Problem with Predicting Actions</a>
+    <ol>
+      <li><a href="#mean">The tyranny of the conditional mean</a></li>
+      <li><a href="#chunks">Acting in sentences, not words</a></li>
+    </ol>
+  </li>
+  <li><a href="#samplers">Policies as Samplers: The Energy View</a>
+    <ol>
+      <li><a href="#ibc">Implicit policies and energies</a></li>
+      <li><a href="#score">Diffusion untangles the energy knot</a></li>
+      <li><a href="#dp">The Diffusion Policy recipe</a></li>
+      <li><a href="#speed">Buying back the milliseconds</a></li>
+      <li><a href="#vla">Flow matching and the VLA era</a></li>
+      <li><a href="#structure">Structure as prior</a></li>
+    </ol>
+  </li>
+  <li><a href="#rl">Diffusion Meets Reinforcement Learning</a>
+    <ol>
+      <li><a href="#diffuser">Planning by denoising</a></li>
+      <li><a href="#critics">Critics as energies</a></li>
+      <li><a href="#rlpost">RL through (and around) the sampler</a></li>
+      <li><a href="#infra">Diffusion as infrastructure</a></li>
+    </ol>
+  </li>
+  <li><a href="#worldmodels">World Models: Somewhere to Practice</a>
+    <ol>
+      <li><a href="#wmwhat">What a world model is for</a></li>
+      <li><a href="#wmcontrol">The control-centric line</a></li>
+      <li><a href="#wmvideo">The video line</a></li>
+      <li><a href="#wmpolicy">2026: world models as policies</a></li>
+      <li><a href="#wmjobs">The simulator jobs: train, evaluate, dream</a></li>
+      <li><a href="#wmerror">Compounding error, the honest ledger</a></li>
+    </ol>
+  </li>
+  <li><a href="#robustness">Robustness: What Breaks, What Helps</a>
+    <ol>
+      <li><a href="#fail">How generative policies fail</a></li>
+      <li><a href="#ood">Does energy tell you when? The OOD question</a></li>
+      <li><a href="#compose">Test-time composition and constrained sampling</a></li>
+      <li><a href="#layers">The layered runtime</a></li>
+    </ol>
+  </li>
+  <li><a href="#humanoids">Humanoids: The Hard Case</a></li>
+  <li><a href="#open">Open Problems</a></li>
+  <li><a href="#citation">Citation</a></li>
+  <li><a href="#references">References</a></li>
+</ol>
+</nav>
+
+<h2 id="actions"><span class="sec-no">1.</span>The Problem with Predicting Actions</h2>
+
+<h3 id="mean"><span class="sec-no">1.1</span>The tyranny of the conditional mean</h3>
+
+<p>Behavior cloning is supervised learning on demonstrations: fit <em class="m">&#960;<sub>&#952;</sub>(o) &#8776; a</em> by minimizing some regression loss over expert pairs. The trouble starts with the loss. Mean-squared error has a closed-form optimum,</p>
+
+<div class="eq"><em class="m">&#960;*(o) = argmin<sub>&#960;</sub> &#120124;&#8214;a &#8722; &#960;(o)&#8214;<sup>2</sup> = &#120124;[a | o]</em> ,</div>
+
+<p>the <em>conditional mean</em> of the expert&rsquo;s actions. If the demonstrators agree &#8212; one situation, one right answer &#8212; that is exactly what you want. But human demonstrations disagree constantly, and not because anyone is wrong. Faced with an obstacle, half the demonstrators pass left and half pass right; grasping a mug, one person approaches from above and another from the side; at low speed, a teleoperator pauses in ways that create dozens of valid continuations of the same observation. The action distribution <em class="m">p(a|o)</em> is <strong>multimodal</strong>, and the mean of two good modes is routinely a bad action that no demonstrator ever took: straight into the obstacle, hesitating between grasps, splitting the difference between &#8220;commit&#8221; and &#8220;retreat&#8221; (Fig. 1). The failure is structural, not a matter of network capacity &#8212; a deterministic continuous function <em>cannot</em> represent &#8220;either of these two actions is correct,&#8221; and it pays for that inability precisely at decision points, which are where manipulation tasks are won and lost.</p>
+
+<figure class="fig" id="fig1">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 300" role="img" aria-label="Three panels: bimodal expert demonstrations around an obstacle, a regression policy averaging them into a collision, and a generative policy sampling both modes" style="min-width:640px">
+  <!-- panel (a): demonstrations -->
+  <text x="135" y="26" text-anchor="middle" class="svN">(A) DEMONSTRATIONS</text>
+  <rect x="120" y="105" width="30" height="36" rx="5" class="svBlk" stroke="#2b2926" stroke-width="1.5"></rect>
+  <path d="M 135 250 C 133 190, 85 160, 75 82" fill="none" stroke="#9a968f" stroke-width="2" marker-end="url(#ah-gray)"></path>
+  <path d="M 135 250 C 129 195, 73 168, 63 90" fill="none" stroke="#c4c0b9" stroke-width="2" marker-end="url(#ah-gray)"></path>
+  <path d="M 135 250 C 137 190, 185 160, 195 82" fill="none" stroke="#9a968f" stroke-width="2" marker-end="url(#ah-gray)"></path>
+  <path d="M 135 250 C 141 195, 197 168, 207 90" fill="none" stroke="#c4c0b9" stroke-width="2" marker-end="url(#ah-gray)"></path>
+  <circle cx="135" cy="252" r="4.5" fill="#2b2926"></circle>
+  <text x="135" y="281" text-anchor="middle" class="svLs">two valid modes</text>
+
+  <!-- panel (b): regression -->
+  <text x="380" y="26" text-anchor="middle" class="svN">(B) REGRESSION</text>
+  <rect x="365" y="105" width="30" height="36" rx="5" class="svBlk" stroke="#2b2926" stroke-width="1.5"></rect>
+  <path d="M 380 250 C 380 215, 380 185, 380 150" fill="none" stroke="#ef8677" stroke-width="2.6"></path>
+  <line x1="371" y1="132" x2="389" y2="114" stroke="#ef8677" stroke-width="3"></line>
+  <line x1="371" y1="114" x2="389" y2="132" stroke="#ef8677" stroke-width="3"></line>
+  <circle cx="380" cy="252" r="4.5" fill="#2b2926"></circle>
+  <text x="380" y="281" text-anchor="middle" class="svLs" fill="#ef8677">mean of the modes</text>
+
+  <!-- panel (c): sampling -->
+  <text x="625" y="26" text-anchor="middle" class="svN">(C) SAMPLING</text>
+  <rect x="610" y="105" width="30" height="36" rx="5" class="svBlk" stroke="#2b2926" stroke-width="1.5"></rect>
+  <path d="M 625 250 C 623 190, 575 160, 565 82" fill="none" stroke="#4fb3bf" stroke-width="2.2" marker-end="url(#ah-teal)"></path>
+  <path d="M 625 250 C 619 195, 563 168, 553 90" fill="none" stroke="#a8d6db" stroke-width="2.2" marker-end="url(#ah-teal)"></path>
+  <path d="M 625 250 C 627 190, 675 160, 685 82" fill="none" stroke="#4fb3bf" stroke-width="2.2" marker-end="url(#ah-teal)"></path>
+  <circle cx="625" cy="252" r="4.5" fill="#2b2926"></circle>
+  <text x="625" y="281" text-anchor="middle" class="svLs" fill="#3d8d97">a &#8764; p(a | o)</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 1.</span> The tyranny of the conditional mean. Demonstrators pass the obstacle on either side, so the expert action distribution is bimodal (a). A policy trained with MSE regression converges to the conditional mean &#8212; a third behavior no demonstrator ever produced (b). A generative policy treats acting as sampling and covers both modes without inventing anything in between (c).</figcaption>
+</figure>
+
+
+<p>The field&rsquo;s first-generation fixes each patched one symptom. Gaussian mixture heads (LSTM-GMM in the <a href="https://arxiv.org/abs/2108.03298">robomimic</a> lineage) cap the number of modes and are famously fiddly to train. Discretizing each action dimension into bins &#8212; the <a href="https://arxiv.org/abs/2212.06817">RT-1</a>/<a href="https://arxiv.org/abs/2307.15818">RT-2</a> recipe &#8212; restores multimodality at the cost of resolution and an awkward independence structure across dimensions, papered over by autoregressive ordering. CVAE policies like <a href="https://arxiv.org/abs/2304.13705">ACT (Zhao et al., 2023)</a> keep a latent for &#8220;which mode,&#8221; but the Gaussian latent blurs decision boundaries. What everyone actually wanted was the full conditional distribution, sampled exactly &#8212; which is a generative-modeling problem, and by 2022 generative modeling had produced an instrument sharp enough to matter.</p>
+
+<h3 id="chunks"><span class="sec-no">1.2</span>Acting in sentences, not words</h3>
+
+<p>The second structural fact about demonstrated actions is temporal. Expert behavior is not a Markov policy sampled step by step; it is a small number of <em>decisions</em> executed over many timesteps. A per-step imitator resamples the decision at every tick &#8212; at 10 Hz, a policy that is 60/40 between two grasps will happily start one grasp and finish the other. The fix that stuck is <strong>action chunking</strong>: predict a sequence <em class="m">A<sub>t</sub> = (a<sub>t</sub>, &#8230;, a<sub>t+T<sub>p</sub></sub>)</em>, execute a prefix, replan. Chunking commits to a mode for long enough to act on it, captures non-Markovian structure in the demos (pauses, retries, idiosyncratic timing), and shortens the effective decision horizon by a factor of the chunk length.</p>
+
+<p>It also, quietly, changes what kind of object a policy is. A chunked stochastic policy is a generative model over short <em>trajectories</em> of actions, conditioned on observations. Once you see that, the machinery of modern generative modeling &#8212; denoising, guidance, inpainting, distillation &#8212; applies verbatim, and most of this post is the field discovering the consequences one by one. The cost of chunking is a genuine tradeoff rather than a bug: within a chunk you are open-loop, so every chunk is a small bet that the world will not surprise you before the next replan. Section <a href="#speed">2.4</a> and &#167;<a href="#fail">5.1</a> return to that bet with theory and with hardware numbers, because for a humanoid the width of that open-loop window is not an implementation detail &#8212; it is the robustness budget.</p>
+
+<h2 id="samplers"><span class="sec-no">2.</span>Policies as Samplers: The Energy View</h2>
+
+<h3 id="ibc"><span class="sec-no">2.1</span>Implicit policies and energies</h3>
+
+<p>The first serious attempt to give robot policies a full distribution was explicitly energy-based. <strong>Implicit BC</strong> (<a href="https://arxiv.org/abs/2109.00137">Florence et al., 2021</a>) replaces the map <em class="m">o &#8594; a</em> with a scalar <em>energy</em> <em class="m">E<sub>&#952;</sub>(o, a)</em> and defines the policy through it:</p>
+
+<div class="eq"><em class="m">p<sub>&#952;</sub>(a | o) = e<sup>&#8722;E<sub>&#952;</sub>(o,a)</sup> / Z<sub>&#952;</sub>(o)</em> ,&nbsp;&nbsp;&nbsp; <em class="m">&#226; = argmin<sub>a</sub> E<sub>&#952;</sub>(o, a)</em> .</div>
+
+<p>Training uses an InfoNCE loss: push the demonstrated action&rsquo;s energy down against a batch of sampled counter-examples <em class="m">&#227;<sub>j</sub></em>,</p>
+
+<div class="eq"><em class="m">&#8466; = &#8722;log&#8202;( e<sup>&#8722;E(o,a&#8314;)</sup> / ( e<sup>&#8722;E(o,a&#8314;)</sup> + &#931;<sub>j</sub> e<sup>&#8722;E(o,&#227;<sub>j</sub>)</sup> ))</em> ,</div>
+
+<p>and inference solves the argmin with derivative-free sampling in low dimensions or Langevin MCMC with gradient penalties in high ones. Two things made this more than a curiosity. First, expressivity of the right kind: for any set-valued mapping with closed graph there exists a <em>continuous</em> energy whose argmin is exactly that mapping &#8212; so discontinuous and multi-valued policies live inside a smooth hypothesis class, where an explicit regressor would need unbounded Lipschitz constants to even approximate them. Second, it worked where it should: on a 1&#8202;mm-tolerance insertion task IBC reached 83.3% success against 6.7% for explicit BC, and 78.2% vs 63.9% on 12-DoF bimanual sweeping &#8212; tasks whose optimal policies are nearly discontinuous in the observation.</p>
+
+<p>The catch was the denominator. <em class="m">Z<sub>&#952;</sub>(o)</em> is intractable, InfoNCE only approximates it as well as the negatives are sampled, and the inaccuracy is not a rounding error: the <a href="https://arxiv.org/abs/2303.04137">Diffusion Policy</a> paper documents IBC&rsquo;s evaluation success oscillating wildly <em>while the training loss decreases smoothly</em>, which in practice meant selecting checkpoints by running them on hardware. An energy landscape is a beautiful policy representation; estimating its normalizer from minibatches is a miserable way to learn one. This tension &#8212; keep the landscape, lose the bookkeeping &#8212; is exactly what diffusion resolved, and seeing that clearly is worth a short detour into the math.</p>
+
+<h3 id="score"><span class="sec-no">2.2</span>Diffusion untangles the energy knot</h3>
+
+<p>Diffusion models learn distributions by learning to undo noise. The forward process corrupts a clean sample <em class="m">a&#8304;</em> toward an isotropic Gaussian over <em class="m">K</em> steps,</p>
+
+<div class="eq"><em class="m">q(a<sup>k</sup> | a&#8304;) = N(&#8730;&#7712;<sub>k</sub>&#8202;a&#8304;, (1 &#8722; &#7712;<sub>k</sub>)&#8202;I)</em> ,</div>
+
+<p>and a network is trained, by plain regression, to predict the noise that was added:</p>
+
+<div class="eq"><em class="m">&#8466;(&#952;) = &#120124;<sub>a&#8304;, k, &#949;</sub> &#8214;&#949; &#8722; &#949;<sub>&#952;</sub>(a<sup>k</sup>, k, o)&#8214;<sup>2</sup></em> .</div>
+
+<p>The consequential identity is what that regression target <em>is</em>. Up to a known scale, the optimal noise predictor equals the score &#8212; the gradient of the log-density of the noised distribution:</p>
+
+<div class="eq"><em class="m">s<sub>&#952;</sub>(a<sup>k</sup>, k | o) = &#8722;&#949;<sub>&#952;</sub>(a<sup>k</sup>, k, o) / &#8730;(1 &#8722; &#7712;<sub>k</sub>) &nbsp;&#8776;&nbsp; &#8711;<sub>a</sub> log q<sub>k</sub>(a<sup>k</sup> | o)</em> .</div>
+
+<p>Now translate into energies: if <em class="m">q<sub>k</sub> &#8733; e<sup>&#8722;E<sub>k</sub></sup></em>, then the score is <em class="m">&#8722;&#8711;E<sub>k</sub></em>. A diffusion model is a stack of energy landscapes indexed by noise level &#8212; heavily smoothed at <em class="m">k = K</em>, sharpening to the true data landscape at <em class="m">k = 0</em> &#8212; represented entirely through their <em>gradients</em>. The normalizer never appears: differentiation killed it. Sampling runs noisy gradient descent down this annealed family (Fig. 2), which is why <a href="https://arxiv.org/abs/1907.05600">Song &amp; Ermon (2019)</a> introduced the noise ladder in the first place: a single sharp landscape has ill-defined, badly-estimated gradients off the data manifold, but its smoothed versions are informative everywhere, and annealing walks samples from anywhere in action space into the data modes. IBC&rsquo;s two problems &#8212; estimate <em class="m">Z</em>, and get gradient signal far from the data &#8212; are both dissolved rather than solved.</p>
+
+<figure class="fig" id="fig2">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 330" role="img" aria-label="Three policy representations: explicit function, energy landscape with minima as actions, and annealed denoising across a sequence of energy landscapes" style="min-width:640px">
+  <!-- (a) explicit -->
+  <text x="135" y="26" text-anchor="middle" class="svN">(A) EXPLICIT &#960;(o)</text>
+  <text x="52" y="120" text-anchor="middle" class="svL">o</text>
+  <line x1="66" y1="116" x2="94" y2="116" class="svArr" marker-end="url(#ah-gray)"></line>
+  <rect x="98" y="94" width="82" height="44" rx="7" class="svBlk"></rect>
+  <text x="139" y="121" text-anchor="middle" class="svLs">&#960;<tspan baseline-shift="sub" font-size="9">&#952;</tspan>(o)</text>
+  <line x1="184" y1="116" x2="212" y2="116" class="svArr" marker-end="url(#ah-gray)"></line>
+  <text x="228" y="120" text-anchor="middle" class="svL">a</text>
+  <!-- mini strip: averaging -->
+  <text x="138" y="205" text-anchor="middle" class="svN" style="letter-spacing:0.02em">output falls between modes</text>
+  <line x1="60" y1="222" x2="216" y2="222" stroke="#c4c0b9" stroke-width="1.6"></line>
+  <circle cx="88" cy="222" r="5" fill="#9a968f"></circle>
+  <circle cx="188" cy="222" r="5" fill="#9a968f"></circle>
+  <circle cx="138" cy="222" r="5.5" fill="#ef8677"></circle>
+  <text x="135" y="262" text-anchor="middle" class="svLs">one answer per query</text>
+  <text x="135" y="284" text-anchor="middle" class="svN" style="letter-spacing:0.02em">cheap &#183; unimodal</text>
+
+  <!-- (b) energy -->
+  <text x="380" y="26" text-anchor="middle" class="svN">(B) ENERGY E(o, a)</text>
+  <line x1="285" y1="240" x2="480" y2="240" stroke="#9a968f" stroke-width="1.4" marker-end="url(#ah-gray)"></line>
+  <line x1="290" y1="245" x2="290" y2="90" stroke="#9a968f" stroke-width="1.4" marker-end="url(#ah-gray)"></line>
+  <text x="480" y="258" text-anchor="middle" class="svN" style="letter-spacing:0.02em">a</text>
+  <text x="276" y="88" text-anchor="middle" class="svN" style="letter-spacing:0.02em">E</text>
+  <path d="M 292 116 C 316 118, 318 208, 344 210 C 366 212, 370 152, 388 150 C 406 148, 412 218, 436 220 C 458 222, 462 132, 476 118" fill="none" stroke="#2b2926" stroke-width="2.4"></path>
+  <circle cx="344" cy="204" r="6" class="svTeal"></circle>
+  <circle cx="436" cy="214" r="6" class="svTeal"></circle>
+  <text x="344" y="190" text-anchor="middle" class="svN" style="letter-spacing:0">min</text>
+  <text x="436" y="200" text-anchor="middle" class="svN" style="letter-spacing:0">min</text>
+  <text x="452" y="105" text-anchor="middle" class="svLs">p &#8733; e<tspan baseline-shift="super" font-size="9">&#8722;E</tspan></text>
+  <text x="380" y="262" text-anchor="middle" class="svLs">modes = minima</text>
+  <text x="380" y="284" text-anchor="middle" class="svN" style="letter-spacing:0.02em">expressive &#183; Z unknown &#183; hard to train</text>
+
+  <!-- (c) diffusion: annealed energies -->
+  <text x="625" y="26" text-anchor="middle" class="svN">(C) SCORE / DIFFUSION</text>
+  <!-- k = K : broad shallow bowl, samples scattered -->
+  <path d="M 520 168 C 540 206, 580 206, 598 168" fill="none" stroke="#2b2926" stroke-width="2"></path>
+  <circle cx="531" cy="180" r="3.6" class="svLilac"></circle>
+  <circle cx="548" cy="192" r="3.6" class="svLilac"></circle>
+  <circle cx="566" cy="193" r="3.6" class="svLilac"></circle>
+  <circle cx="585" cy="181" r="3.6" class="svLilac"></circle>
+  <text x="559" y="150" text-anchor="middle" class="svN" style="letter-spacing:0.02em">k = K</text>
+  <line x1="606" y1="186" x2="624" y2="186" stroke="#a78bdb" stroke-width="1.8" marker-end="url(#ah-lilac)"></line>
+  <!-- k mid : two shallow dips forming -->
+  <path d="M 630 170 C 640 202, 652 200, 664 192 C 676 200, 688 202, 698 170" fill="none" stroke="#2b2926" stroke-width="2"></path>
+  <circle cx="646" cy="194" r="3.6" class="svLilac"></circle>
+  <circle cx="662" cy="190" r="3.6" class="svLilac"></circle>
+  <circle cx="684" cy="195" r="3.6" class="svLilac"></circle>
+  <text x="664" y="150" text-anchor="middle" class="svN" style="letter-spacing:0.02em">k</text>
+  <!-- arrow down to k = 0 -->
+  <path d="M 704 190 C 718 214, 708 232, 692 244" fill="none" stroke="#a78bdb" stroke-width="1.8" marker-end="url(#ah-lilac)"></path>
+  <text x="722" y="216" text-anchor="start" class="svN" style="letter-spacing:0">&#8722;&#8711;E</text>
+  <!-- k = 0 : sharp double well, samples in the wells -->
+  <path d="M 552 232 C 566 233, 568 284, 583 284 C 596 285, 599 251, 610 250 C 621 250, 624 288, 638 288 C 651 289, 654 241, 664 233" fill="none" stroke="#2b2926" stroke-width="2.2"></path>
+  <circle cx="580" cy="278" r="4.2" class="svTeal"></circle>
+  <circle cx="587" cy="279" r="4.2" class="svTeal"></circle>
+  <circle cx="636" cy="282" r="4.2" class="svTeal"></circle>
+  <text x="607" y="312" text-anchor="middle" class="svN" style="letter-spacing:0.02em">k = 0</text>
+  <text x="625" y="330" text-anchor="middle" class="svN" style="letter-spacing:0.02em" transform="translate(0,-2)">train the gradient, never Z</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 2.</span> Three ways to represent a policy. An explicit network returns one action and averages incompatible modes (a). An energy-based policy scores every candidate action, so multiple minima coexist &#8212; but training needs the partition function <em class="m">Z</em>(o) it can never compute (b). Diffusion keeps the landscape and discards the bookkeeping: it learns the <em>gradient</em> of a sequence of progressively sharper energies and rolls samples downhill from noise to the data modes (c).</figcaption>
+</figure>
+
+
+<p>One asterisk belongs here, because I will lean on this identification for the rest of the post. &#8220;Score = <em class="m">&#8722;&#8711;E</em>&#8221; is exact only if the network is the gradient of some scalar function. Standard diffusion networks are unconstrained vector fields &#8212; nothing forces them to be conservative. You can impose the energy parameterization (define <em class="m">s<sub>&#952;</sub> = &#8722;&#8711;f<sub>&#952;</sub></em>), and <a href="https://openreview.net/forum?id=9AS-TF2jRNb">Salimans &amp; Ho (2021)</a> found this costs essentially nothing in sample quality &#8212; but it is a modeling choice, not a theorem about the models people actually ship. Where the distinction matters &#8212; Metropolis corrections in &#167;<a href="#compose">5.3</a>, likelihood-flavored OOD scores in &#167;<a href="#ood">5.2</a> &#8212; I will say so. Everywhere else, &#8220;diffusion policies are annealed energy models, up to a parameterization choice that costs nothing&#8221; is a safe way to think.</p>
+
+<h3 id="dp"><span class="sec-no">2.3</span>The Diffusion Policy recipe</h3>
+
+<p><strong>Diffusion Policy</strong> (<a href="https://arxiv.org/abs/2303.04137">Chi et al., 2023</a>) is the paper that turned this into the field&rsquo;s default action head, and its design decisions are worth knowing exactly, because nearly everything since is a mutation of them (Fig. 3). The policy denoises an <em>action chunk</em>, not a single action: with observation horizon <em class="m">T<sub>o</sub> = 2</em>, it predicts <em class="m">T<sub>p</sub> = 16</em> future actions and executes <em class="m">T<sub>a</sub> = 8</em> before replanning &#8212; receding-horizon control with a generative planner in the loop. Observations enter as <em>conditioning</em> (FiLM modulation of a ResNet-18 with spatial-softmax pooling), never as part of the denoised array &#8212; that single choice is what keeps closed-loop inference tractable. Two denoiser heads: a temporal-CNN U-Net (the robust default) and a transformer variant that wins when action sequences change fast but is touchier to tune. Trained with 100 DDPM steps, deployed with 10 DDIM steps at roughly 0.1&#8202;s per chunk on an RTX 3080 &#8212; 10&#8202;Hz command generation, linearly interpolated to 125&#8202;Hz for execution.</p>
+
+<figure class="fig" id="fig3">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 350" role="img" aria-label="Diffusion Policy anatomy: observation stack encoded and used to condition an iterative denoiser that outputs an action chunk; below, the receding-horizon execution timeline" style="min-width:640px">
+  <!-- observation stack -->
+  <text x="80" y="26" text-anchor="middle" class="svN">OBSERVATIONS O&#8202;t</text>
+  <rect x="42" y="44" width="52" height="38" rx="4" class="svBlkLt" stroke="#9a968f" stroke-width="1.2"></rect>
+  <rect x="52" y="52" width="52" height="38" rx="4" class="svBlk" stroke="#2b2926" stroke-width="1.4"></rect>
+  <text x="78" y="75" text-anchor="middle" class="svN" style="letter-spacing:0">imgs</text>
+  <rect x="52" y="100" width="52" height="12" rx="3" class="svAmberSoft" stroke="#e09a2b" stroke-width="1"></rect>
+  <text x="78" y="130" text-anchor="middle" class="svN" style="letter-spacing:0">proprio</text>
+  <text x="78" y="148" text-anchor="middle" class="svN" style="letter-spacing:0.02em">T&#8202;o = 2 steps</text>
+  <line x1="112" y1="76" x2="152" y2="76" class="svArr" marker-end="url(#ah-gray)"></line>
+  <!-- encoder -->
+  <rect x="156" y="54" width="92" height="44" rx="7" class="svBlk"></rect>
+  <text x="202" y="75" text-anchor="middle" class="svLs">vision</text>
+  <text x="202" y="90" text-anchor="middle" class="svLs">encoder</text>
+  <path d="M 248 76 C 280 76, 290 100, 306 116" fill="none" stroke="#9a968f" stroke-width="1.8" marker-end="url(#ah-gray)"></path>
+  <text x="292" y="82" text-anchor="middle" class="svN" style="letter-spacing:0">condition</text>
+  <!-- noise in -->
+  <circle cx="330" cy="38" r="3.8" class="svLilac"></circle>
+  <circle cx="344" cy="30" r="3.8" class="svLilac"></circle>
+  <circle cx="358" cy="40" r="3.8" class="svLilac"></circle>
+  <text x="404" y="36" text-anchor="start" class="svN" style="letter-spacing:0.02em">A<tspan baseline-shift="super" font-size="8">K</tspan> ~ N(0, I)</text>
+  <line x1="346" y1="50" x2="346" y2="102" stroke="#a78bdb" stroke-width="1.8" marker-end="url(#ah-lilac)"></line>
+  <!-- denoiser -->
+  <rect x="306" y="106" width="150" height="74" class="svBox"></rect>
+  <text x="381" y="138" text-anchor="middle" class="svLs">denoiser &#949;<tspan baseline-shift="sub" font-size="9">&#952;</tspan>(A<tspan baseline-shift="super" font-size="8">k</tspan>, k, O&#8202;t)</text>
+  <text x="381" y="162" text-anchor="middle" class="svN" style="letter-spacing:0.02em">U-Net / DiT</text>
+  <path d="M 456 128 C 492 118, 492 168, 456 158" fill="none" stroke="#4fb3bf" stroke-width="2" marker-end="url(#ah-teal)"></path>
+  <text x="502" y="146" text-anchor="start" class="svN" style="letter-spacing:0.02em">k = K &#8594; 0</text>
+  <!-- output chunk -->
+  <line x1="381" y1="180" x2="381" y2="212" class="svArrI" marker-end="url(#ah-ink)"></line>
+  <text x="560" y="205" text-anchor="middle" class="svN">ACTION CHUNK A&#8202;t (T&#8202;p = 16)</text>
+  <g>
+    <rect x="286" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="310" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="334" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="358" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="382" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="406" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="430" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="454" y="216" width="22" height="22" rx="3" class="svTeal"></rect>
+    <rect x="478" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="502" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="526" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="550" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="574" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="598" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="622" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+    <rect x="646" y="216" width="22" height="22" rx="3" class="svTealSoft"></rect>
+  </g>
+  <path d="M 286 246 L 286 252 L 476 252 L 476 246" fill="none" stroke="#2b2926" stroke-width="1.4"></path>
+  <text x="381" y="268" text-anchor="middle" class="svN" style="letter-spacing:0.02em">execute T&#8202;a = 8</text>
+  <path d="M 478 246 L 478 252 L 668 252 L 668 246" fill="none" stroke="#c4c0b9" stroke-width="1.4"></path>
+  <text x="573" y="268" text-anchor="middle" class="svN" style="letter-spacing:0.02em">discard, replan from new O</text>
+  <!-- receding horizon loop -->
+  <path d="M 680 227 C 726 227, 726 76, 260 60 C 180 57, 130 60, 110 60" fill="none" stroke="#ef8677" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ah-coral)"></path>
+  <text x="700" y="120" text-anchor="start" class="svN" style="letter-spacing:0.02em" fill="#d96f60">replan</text>
+  <text x="380" y="316" text-anchor="middle" class="svLs">closed loop at chunk rate &#183; open loop within a chunk</text>
+  <text x="380" y="338" text-anchor="middle" class="svN" style="letter-spacing:0.02em">typical: predict 16 &#183; execute 8 &#183; ~10 Hz replanning</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 3.</span> The Diffusion Policy recipe (<a href="https://arxiv.org/abs/2303.04137">Chi et al., 2023</a>). A short observation history conditions an iterative denoiser that refines Gaussian noise into a <em>chunk</em> of future actions; the robot executes the first <em class="m">T<sub>a</sub></em> steps and replans. The chunk gives temporal consistency and mode commitment; the receding horizon restores (some) reactivity. Most of this post&rsquo;s speed, robustness, and safety story happens inside this loop.</figcaption>
+</figure>
+
+
+<p>The headline was a ~47% average relative improvement over the prior state of the art (LSTM-GMM, IBC, BET) across a dozen-plus benchmark tasks, but the ablations aged better than the headline. Position-control action spaces beat velocity control for this policy class &#8212; reversing the field&rsquo;s prior folk wisdom &#8212; because position targets compound error more gently and multimodality was the real reason velocity control had seemed necessary. Visual conditioning plus iterative refinement handled idle/pause actions that collapse GMM heads. And the comparison with IBC is the energy argument made empirical: same implicit-policy expressivity, but a stable regression objective in place of a normalizer estimate; on the real Push-T task the gap was 95% vs 20%. The paper&rsquo;s own limitation list &#8212; demo-bounded performance, compute cost, chunks too coarse for high-rate control &#8212; reads, three years later, as the table of contents for &#167;2.4 and &#167;5.</p>
+
+<h3 id="speed"><span class="sec-no">2.4</span>Buying back the milliseconds</h3>
+
+<p>Iterative denoising is a tax paid at exactly the wrong time: inference. The field has attacked it from four directions, and the numbers are worth internalizing because they determine what can sit where in a control stack.</p>
+
+<p><strong>Fewer steps.</strong> DDIM made 100&#8594;10 steps routine; <a href="https://arxiv.org/abs/2304.02532">BESO (Reuss et al., 2023)</a> showed a continuous-time score policy runs at 3 denoising steps without retraining tricks. <strong>Distillation</strong> goes further: <a href="https://arxiv.org/abs/2405.07503">Consistency Policy (Prasad et al., 2024)</a> distills a trained diffusion policy along its own probability-flow ODE for an order-of-magnitude speedup on a laptop GPU; <a href="https://arxiv.org/abs/2406.01586">ManiCM</a> does the same for 3D point-cloud policies at one step (~10&#215; faster); <a href="https://arxiv.org/abs/2410.21257">OneDP (Wang et al., 2024)</a> uses distribution-matching distillation to go from 1.5&#8202;Hz to 62&#8202;Hz action prediction for 2&#8211;10% extra pretraining cost. The recurring price of one-step students: you give up test-time iterative refinement &#8212; and with it, as we will see, some of the guidance and monitoring hooks that make samplers architecturally interesting.</p>
+
+<p><strong>Restructure the computation.</strong> <a href="https://arxiv.org/abs/2406.04806">Streaming Diffusion Policy (H&#248;eg et al., 2024)</a> keeps a rolling buffer of actions at <em>graded</em> noise levels &#8212; the imminent action is clean, later ones progressively noisier &#8212; so each tick does a partial denoise and pops the head of the queue: 0.07&#8202;s vs 0.13&#8202;s per chunk on a real arm, and notably <em>higher</em> success than vanilla DP on real Push-T (0.85 vs 0.50), presumably because conditioning stays fresher. <a href="https://arxiv.org/abs/2505.21851">Streaming Flow Policy (2025)</a> makes the trajectory itself the flow path, emitting actions during integration.</p>
+
+<p><strong>Fix the seams.</strong> Chunked policies have a boundary problem: chunk <em class="m">j+1</em> is generated while chunk <em class="m">j</em> executes, and naively switching between them produces discontinuities or, under inference latency, stale plans. <a href="https://arxiv.org/abs/2506.07339">Real-Time Chunking (Black et al., 2025)</a> treats the transition as test-time <em>inpainting</em>: freeze the actions guaranteed to execute before the switch, and generate the rest with guidance to agree with the frozen prefix &#8212; no retraining, +21&#8202;ms over vanilla inference (97 vs 76&#8202;ms per 50-action chunk on &#960;0.5), and the resulting system keeps working with 200&#8202;ms of injected latency and lights a match with total latency above 300&#8202;ms, where naive temporal ensembling triggers protective stops. It is a small paper with a large moral: <em>the denoiser&rsquo;s conditioning machinery is a control interface</em>, available at deployment for problems the trainer never anticipated.</p>
+
+<p><strong>Resample instead of committing.</strong> <a href="https://arxiv.org/abs/2408.17355">Bidirectional Decoding (Liu et al., 2024)</a> is the closest thing this literature has to a theory of chunk length. Their analysis formalizes the folk tradeoff: longer chunks implicitly condition on more of the expert&rsquo;s latent strategy (good: temporal consistency, mode commitment) but act on staler observations (bad: reactivity), and the orderings provably flip between deterministic and stochastic environments &#8212; in their diagnostic, the optimal horizon slides from 10 to 1 as dynamics noise grows (Fig. 4). Their fix samples a batch of candidate chunks <em>every step</em> and selects one that is backward-coherent with the executing plan and forward-preferred by contrast against a weaker policy: +32% relative with a DP backbone in sim, 2&#215; success on a real dynamic pick task, for roughly doubled sampling compute. Batched sampling as a robustness instrument, not just a speed problem &#8212; hold that thought for &#167;<a href="#ood">5.2</a>.</p>
+
+<figure class="fig" id="fig4">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 300" role="img" aria-label="Left: optimal action-chunk length falls as environment stochasticity rises. Right: chunk length as a slider between temporal consistency and reactivity." style="min-width:640px">
+  <!-- left: h* vs noise -->
+  <text x="190" y="26" text-anchor="middle" class="svN">OPTIMAL CHUNK SHRINKS WITH STOCHASTICITY</text>
+  <line x1="70" y1="230" x2="340" y2="230" stroke="#9a968f" stroke-width="1.4" marker-end="url(#ah-gray)"></line>
+  <line x1="70" y1="230" x2="70" y2="62" stroke="#9a968f" stroke-width="1.4" marker-end="url(#ah-gray)"></line>
+  <text x="205" y="266" text-anchor="middle" class="svN" style="letter-spacing:0.02em">dynamics noise</text>
+  <text x="60" y="56" text-anchor="start" class="svN" style="letter-spacing:0.02em">best horizon h*</text>
+  <!-- ticks -->
+  <text x="88" y="248" text-anchor="middle" class="svN" style="letter-spacing:0">0</text>
+  <text x="205" y="248" text-anchor="middle" class="svN" style="letter-spacing:0">0.2</text>
+  <text x="322" y="248" text-anchor="middle" class="svN" style="letter-spacing:0">0.4</text>
+  <text x="58" y="94" text-anchor="end" class="svN" style="letter-spacing:0">10</text>
+  <text x="58" y="154" text-anchor="end" class="svN" style="letter-spacing:0">5</text>
+  <text x="58" y="214" text-anchor="end" class="svN" style="letter-spacing:0">1</text>
+  <path d="M 88 90 C 130 96, 165 120, 205 150 C 245 180, 285 202, 322 210" fill="none" stroke="#4fb3bf" stroke-width="2.4"></path>
+  <circle cx="88" cy="90" r="5.5" fill="#2b2926"></circle>
+  <circle cx="205" cy="150" r="5.5" fill="#2b2926"></circle>
+  <circle cx="322" cy="210" r="5.5" fill="#2b2926"></circle>
+  <text x="205" y="288" text-anchor="middle" class="svN" style="letter-spacing:0.02em">BID&#8217;s 1-D diagnostic (Liu et al., 2024)</text>
+
+  <!-- right: the slider -->
+  <text x="575" y="26" text-anchor="middle" class="svN">EVERY CHUNK IS AN OPEN-LOOP BET</text>
+  <line x1="420" y1="140" x2="730" y2="140" stroke="#c4c0b9" stroke-width="3" stroke-linecap="round"></line>
+  <circle cx="545" cy="140" r="10" fill="#ffffff" stroke="#2b2926" stroke-width="2.4"></circle>
+  <line x1="600" y1="118" x2="660" y2="118" stroke="#ef8677" stroke-width="2" marker-end="url(#ah-coral)"></line>
+  <text x="630" y="106" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#d96f60">more disturbance</text>
+  <text x="420" y="176" text-anchor="start" class="svLs">long chunks</text>
+  <text x="420" y="196" text-anchor="start" class="svN" style="letter-spacing:0.02em">consistency &#183; commitment</text>
+  <text x="420" y="212" text-anchor="start" class="svN" style="letter-spacing:0.02em">latency tolerance</text>
+  <text x="730" y="176" text-anchor="end" class="svLs">short chunks</text>
+  <text x="730" y="196" text-anchor="end" class="svN" style="letter-spacing:0.02em">reactivity &#183; fresh obs</text>
+  <text x="730" y="212" text-anchor="end" class="svN" style="letter-spacing:0.02em">mode dithering risk</text>
+  <text x="575" y="262" text-anchor="middle" class="svN" style="letter-spacing:0.02em">BID resamples &#183; RTC inpaints the seams &#183; SDP streams</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 4.</span> The chunking dilemma. In near-deterministic settings, longer chunks win: they capture the demonstrator&rsquo;s latent strategy and tolerate inference latency. As the world gets noisier &#8212; disturbances, moving objects, another agent &#8212; the optimum slides toward short chunks and fresh observations; <a href="https://arxiv.org/abs/2408.17355">Liu et al. (2024)</a> prove the orderings flip and show the crossover empirically. For a humanoid under perturbation, the chunk length <em>is</em> the robustness budget.</figcaption>
+</figure>
+
+
+<div class="tbl-scroll">
+<table class="tbl">
+<tr><th>method</th><th>steps</th><th>measured cost / rate</th><th>hardware</th></tr>
+<tr><td><span class="name">Diffusion Policy</span> <a href="https://arxiv.org/abs/2303.04137">2303.04137</a></td><td>10 (DDIM; 100 train)</td><td>~0.1 s/chunk; 10 Hz commands &#8594; 125 Hz interp.</td><td>RTX 3080</td></tr>
+<tr><td><span class="name">BESO</span> <a href="https://arxiv.org/abs/2304.02532">2304.02532</a></td><td>3</td><td>&#8212;</td><td>&#8212;</td></tr>
+<tr><td><span class="name">Consistency Policy</span> <a href="https://arxiv.org/abs/2405.07503">2405.07503</a></td><td>1&#8211;3 (distilled)</td><td>~10&#215; faster than fastest baseline</td><td>laptop GPU</td></tr>
+<tr><td><span class="name">OneDP</span> <a href="https://arxiv.org/abs/2410.21257">2410.21257</a></td><td>1 (distilled)</td><td>1.5 Hz &#8594; 62 Hz prediction</td><td>&#8212; (real Franka tasks)</td></tr>
+<tr><td><span class="name">Streaming DP</span> <a href="https://arxiv.org/abs/2406.04806">2406.04806</a></td><td>amortized buffer</td><td>0.07 s vs 0.13 s per chunk (real)</td><td>&#8212;</td></tr>
+<tr><td><span class="name">RDT-1B</span> <a href="https://arxiv.org/abs/2410.07864">2410.07864</a></td><td>5 (DPM-Solver++)</td><td>6 Hz chunk inference / 381 Hz action rate</td><td>RTX 4090</td></tr>
+<tr><td><span class="name">&#960;0</span> <a href="https://arxiv.org/abs/2410.24164">2410.24164</a></td><td>10 (flow ODE)</td><td>50-step chunks; control up to 50 Hz</td><td>&#8212;</td></tr>
+<tr><td><span class="name">RTC on &#960;0.5</span> <a href="https://arxiv.org/abs/2506.07339">2506.07339</a></td><td>5</td><td>97 ms/chunk (76 vanilla); robust to +200 ms latency</td><td>&#8212;</td></tr>
+<tr><td><span class="name">GR00T N1</span> <a href="https://arxiv.org/abs/2503.14734">2503.14734</a></td><td>4</td><td>63.9 ms per 16-action chunk; System-1 at 120 Hz</td><td>L40 (bf16)</td></tr>
+<tr><td><span class="name">BID</span> <a href="https://arxiv.org/abs/2408.17355">2408.17355</a></td><td>base steps &#215; N=16 samples</td><td>~25 ms vs 13 ms vanilla</td><td>RTX A5000</td></tr>
+<tr><td><span class="name">OpenVLA-OFT</span> <a href="https://arxiv.org/abs/2502.19645">2502.19645</a></td><td>n/a (L1 head)</td><td>26&#215; action-generation throughput vs base</td><td>&#8212;</td></tr>
+</table>
+</div>
+
+<h3 id="vla"><span class="sec-no">2.5</span>Flow matching and the VLA era</h3>
+
+<p>Scaling replaced DDPM with <strong>flow matching</strong>, which learns a velocity field instead of a noise predictor: draw noise <em class="m">x&#8304;</em>, data <em class="m">x&#185;</em>, form the straight-line interpolant <em class="m">x<sup>t</sup> = (1&#8722;t)&#8202;x&#8304; + t&#8202;x&#185;</em>, and regress</p>
+
+<div class="eq"><em class="m">&#8466;(&#952;) = &#120124;<sub>t, x&#8304;, x&#185;</sub> &#8214;v<sub>&#952;</sub>(x<sup>t</sup>, t, o) &#8722; (x&#185; &#8722; x&#8304;)&#8214;<sup>2</sup></em> ,</div>
+
+<p>then integrate the ODE in a handful of steps. Same annealed-landscape picture, straighter paths, friendlier step counts. <a href="https://arxiv.org/abs/2410.24164">&#960;0 (Black et al., 2024)</a> is the reference design: a 3B PaliGemma VLM with a 300M-parameter flow-matching <em>action expert</em> that attends to the VLM&rsquo;s representations and emits 50-step action chunks for control up to 50&#8202;Hz, trained on ~10,000 hours across 7 robot configurations, then fine-tuned into laundry-folding and box-assembly systems that were, at release, the longest dexterous end-to-end tasks demonstrated. <a href="https://arxiv.org/abs/2504.16054">&#960;0.5 (2025)</a> pushed the same architecture into <em>unseen homes</em>, with co-training on hybrid supervision (subtask prediction, detections, cross-embodiment data) and a scaling study whose most quotable point is that performance approached an in-domain baseline after training across only ~100 distinct environments. Around them sits a family: <a href="https://arxiv.org/abs/2410.07864">RDT-1B</a> (1.2B diffusion transformer for bimanual ALOHA, a 128-D unified action space across embodiments); <a href="https://arxiv.org/abs/2405.12213">Octo</a> (the open generalist with a small diffusion head); <a href="https://arxiv.org/abs/2503.14734">GR00T N1</a> (NVIDIA&rsquo;s dual-system humanoid VLA &#8212; 10&#8202;Hz VLM, 120&#8202;Hz flow-matching action module, 63.9&#8202;ms chunks on an L40, and from N1.5 onward a training diet that includes world-model-generated &#8220;dream&#8221; trajectories, &#167;<a href="#wmjobs">4.5</a>); and TRI&rsquo;s <a href="https://arxiv.org/abs/2507.05331">Large Behavior Models</a>, ~1,700 hours of bimanual data under the most statistically careful evaluation in this literature &#8212; blind A/B testing, sequential hypothesis tests, tens of thousands of rollouts &#8212; landing on the sober, valuable conclusion that diffusion LBMs learn new tasks with 3&#8211;5&#215; less data than single-task baselines, with quality rising predictably with pretraining scale.</p>
+
+<p>Two honest footnotes to the era. First, <a href="https://arxiv.org/abs/2502.19645">OpenVLA-OFT (Kim et al., 2025)</a> ran the controlled comparison the field owed itself and found that with a strong VLM backbone, <em>parallel decoding + action chunking + continuous actions + plain L1 regression</em> hits 97.1% on LIBERO and beats fine-tuned &#960;0 and RDT-1B on a real ALOHA at 26&#215; the throughput of its autoregressive parent. Read carefully, this does not un-happen &#167;1 &#8212; L1-per-chunk is mode-seeking around a dominant mode, and it thrives exactly where fine-tuning data is unimodal-ish and precision dominates diversity. But it does discipline the narrative: what is indispensable is <em>expressive distribution matching over chunks</em> when the data demands it, not the word &#8220;diffusion.&#8221; Second, the community-scale copy of the frontier recipe &#8212; <a href="https://arxiv.org/abs/2506.01844">SmolVLA</a>, a compact flow VLA with an asynchronous inference stack &#8212; matters strategically: the architecture is no longer gated on lab-scale compute, which changes who gets to discover its failure modes.</p>
+
+<h3 id="structure"><span class="sec-no">2.6</span>Structure as prior</h3>
+
+<p>The remaining reliable wins on the imitation side come from changing what the denoiser is conditioned on, not how it denoises. <strong>3D:</strong> <a href="https://arxiv.org/abs/2403.03954">DP3 (Ze et al., 2024)</a> swaps images for compact point-cloud features and handles most of 72 sim tasks from 10 demonstrations, with 85% real-robot success from 40 demos per task and a striking aside &#8212; it &#8220;rarely violates safety requirements&#8221; where image-based baselines frequently do; <a href="https://arxiv.org/abs/2410.10803">iDP3 (Ze et al., 2024)</a> is its humanoid field version, moving to egocentric camera-frame 3D so a 25-DoF full-size humanoid needs no camera calibration or segmentation, trained from Vision-Pro teleop and generalizing from single-scene data to unseen rooms across 2,000+ real rollouts; <a href="https://arxiv.org/abs/2402.10885">3D Diffuser Actor</a> holds the RLBench records (+18.1% absolute multi-view). <strong>Symmetry:</strong> <a href="https://arxiv.org/abs/2407.01812">Equivariant Diffusion Policy (Wang et al., 2024)</a> characterizes when the denoising process itself is SO(2)-equivariant and banks +21.9% average over DP on MimicGen plus real policies at demo counts where vanilla DP fails outright; <a href="https://arxiv.org/abs/2407.01479">EquiBot</a> pushes to SIM(3) &#8212; scale included &#8212; from five minutes of human demonstration per task. Symmetry is robustness bought from the hypothesis class rather than the dataset. <strong>Touch and force:</strong> <a href="https://arxiv.org/abs/2503.02881">Reactive Diffusion Policy (Xue et al., 2025)</a> is the clearest statement that chunked visual diffusion alone cannot do contact: a slow latent-diffusion planner is wrapped by a &lt;1&#8202;ms tactile fast loop acting as a learned impedance controller, taking bimanual lifting from 0.00 (vanilla DP) to 0.70. And closing the circle to &#167;2.1: <a href="https://arxiv.org/abs/2209.03855">SE(3)-DiffusionFields (Urain et al., 2022)</a> keeps the <em>explicit</em> energy alive where it is most natural &#8212; a score-matched, smooth grasp-pose energy on SE(3) that drops into classical trajectory optimization as one differentiable cost among several, jointly optimizing grasp and motion with 25 samples where the decoupled pipeline needed 800. That paper is the quiet preview of &#167;5.3: energies compose; that was always the point.</p>
+
+<h2 id="rl"><span class="sec-no">3.</span>Diffusion Meets Reinforcement Learning</h2>
+
+<p>Imitation treats the demonstrator as the objective. Reinforcement learning introduces a second voice &#8212; a reward, a value function &#8212; and the whole design space of &#8220;diffusion in RL&#8221; is a catalogue of ways to let that voice speak to a sampler. It helps to know in advance that almost everything reduces to one target distribution. KL-regularized policy improvement against a behavior prior <em class="m">&#956;</em> has a closed-form optimum:</p>
+
+<div class="eq"><em class="m">&#960;*(a|s) &#8733; &#956;(a|s) &#183; e<sup>&#946;Q(s,a)</sup></em> ,</div>
+
+<p>the prior tilted by a Boltzmann factor whose energy is <em class="m">&#8722;Q</em>. Every method below is a different sampler for (approximately) this object.</p>
+
+<h3 id="diffuser"><span class="sec-no">3.1</span>Planning by denoising</h3>
+
+<p><a href="https://arxiv.org/abs/2205.09991"><strong>Diffuser</strong> (Janner et al., 2022)</a> started the planner branch by refusing the usual factorization. Instead of a dynamics model rolled out step by step, it diffuses the <em>entire trajectory</em> <em class="m">&#964; = [s<sub>0..T</sub>; a<sub>0..T</sub>]</em> as a single 2-D array (Fig. 5). Time becomes an axis, not a loop; each denoising pass enforces only local consistency, and stacking passes &#8220;can drive global coherence.&#8221; Preferences enter as classifier guidance &#8212; sample from the tilted density <em class="m">p&#771;(&#964;) &#8733; p<sub>&#952;</sub>(&#964;)&#8202;e<sup>J(&#964;)</sup></em> by adding the gradient of a learned return model to each reverse step &#8212; and goals enter for free by <em>inpainting</em>: clamp the cells you know (the current state, the goal state) and let the model fill in the rest. The payoffs were exactly where autoregressive planners hurt: no per-step compounding, long-horizon credit without bootstrapping, and <em>stitching</em> &#8212; v-shaped Maze2D plans out of straight-line training data, with scores (113&#8211;123 across mazes) roughly double the best model-free baselines, and multi-task Maze2D at 129.4 vs 16.9 for IQL. The costs were also structural: 20&#8211;100 denoising steps per plan (the paper suggests warm-starting replans by partially re-noising the previous plan), and on dense-reward locomotion it merely tied CQL/IQL &#8212; trajectory-level generation earns its keep on sparse, long-horizon, goal-shaped problems.</p>
+
+<figure class="fig" id="fig5">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 310" role="img" aria-label="Diffuser: a full state-action trajectory is denoised jointly as one sample, with start and goal columns pinned by inpainting and rewards applied as gradient guidance" style="min-width:640px">
+  <!-- top grid: noisy -->
+  <text x="130" y="30" text-anchor="start" class="svN">k = K (NOISE)</text>
+  <!-- padlocks on pinned columns -->
+  <g stroke="#2b2926" stroke-width="1.4" fill="#ffffff">
+    <path d="M 139 46 a4 4 0 0 1 8 0" fill="none"></path>
+    <rect x="137" y="46" width="12" height="9" rx="2"></rect>
+    <path d="M 409 46 a4 4 0 0 1 8 0" fill="none"></path>
+    <rect x="407" y="46" width="12" height="9" rx="2"></rect>
+  </g>
+  <g>
+    <rect x="130" y="64" width="26" height="26" rx="3" class="svTeal"></rect>
+    <rect x="160" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="190" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="220" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="250" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="280" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="310" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="340" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="370" y="64" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="400" y="64" width="26" height="26" rx="3" class="svTeal"></rect>
+    <rect x="130" y="94" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="160" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="190" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="220" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="250" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="280" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="310" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="340" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="370" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+    <rect x="400" y="94" width="26" height="26" rx="3" class="svLilacSoft"></rect>
+  </g>
+  <!-- noise speckles -->
+  <g fill="#a78bdb" opacity="0.55">
+    <circle cx="171" cy="72" r="1.8"></circle><circle cx="205" cy="84" r="1.8"></circle>
+    <circle cx="231" cy="70" r="1.8"></circle><circle cx="262" cy="82" r="1.8"></circle>
+    <circle cx="297" cy="73" r="1.8"></circle><circle cx="322" cy="85" r="1.8"></circle>
+    <circle cx="352" cy="71" r="1.8"></circle><circle cx="381" cy="83" r="1.8"></circle>
+    <circle cx="173" cy="105" r="1.8"></circle><circle cx="209" cy="113" r="1.8"></circle>
+    <circle cx="237" cy="101" r="1.8"></circle><circle cx="266" cy="114" r="1.8"></circle>
+    <circle cx="299" cy="103" r="1.8"></circle><circle cx="329" cy="112" r="1.8"></circle>
+    <circle cx="356" cy="102" r="1.8"></circle><circle cx="386" cy="113" r="1.8"></circle>
+    <circle cx="412" cy="105" r="1.8"></circle>
+  </g>
+  <text x="118" y="82" text-anchor="end" class="svLs">s</text>
+  <text x="118" y="112" text-anchor="end" class="svLs">a</text>
+  <text x="143" y="140" text-anchor="middle" class="svN" style="letter-spacing:0">t = 0</text>
+  <text x="413" y="140" text-anchor="middle" class="svN" style="letter-spacing:0">t = T</text>
+
+  <!-- denoise arrow with guidance -->
+  <line x1="278" y1="150" x2="278" y2="184" class="svArrI" marker-end="url(#ah-ink)"></line>
+  <text x="262" y="171" text-anchor="end" class="svN" style="letter-spacing:0.02em">k = K &#8594; 0</text>
+  <line x1="352" y1="158" x2="296" y2="172" stroke="#ef8677" stroke-width="2" marker-end="url(#ah-coral)"></line>
+  <text x="360" y="164" text-anchor="start" class="svN" style="letter-spacing:0.02em" fill="#d96f60">guidance &#8722;&#955;&#8711;c(&#964;)</text>
+
+  <!-- bottom grid: clean plan -->
+  <text x="130" y="182" text-anchor="start" class="svN">k = 0 (PLAN)</text>
+  <g>
+    <rect x="130" y="196" width="26" height="26" rx="3" class="svTeal"></rect>
+    <rect x="160" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="190" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="220" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="250" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="280" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="310" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="340" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="370" y="196" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="400" y="196" width="26" height="26" rx="3" class="svTeal"></rect>
+    <rect x="130" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="160" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="190" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="220" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="250" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="280" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="310" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="340" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="370" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+    <rect x="400" y="226" width="26" height="26" rx="3" class="svTealSoft"></rect>
+  </g>
+  <path d="M 143 214 C 180 202, 215 222, 250 212 C 285 202, 320 218, 355 210 C 380 205, 400 208, 413 209" fill="none" stroke="#2b2926" stroke-width="2.2"></path>
+  <text x="118" y="214" text-anchor="end" class="svLs">s</text>
+  <text x="118" y="244" text-anchor="end" class="svLs">a</text>
+
+  <!-- right annotations -->
+  <g>
+    <rect x="480" y="64" width="248" height="32" rx="7" class="svCream"></rect>
+    <text x="494" y="84" text-anchor="start" class="svLs">whole plan denoised jointly</text>
+    <rect x="480" y="106" width="248" height="32" rx="7" class="svCream"></rect>
+    <text x="494" y="126" text-anchor="start" class="svLs">goals = inpainting (pin cells)</text>
+    <rect x="480" y="148" width="248" height="32" rx="7" class="svCream"></rect>
+    <text x="494" y="168" text-anchor="start" class="svLs">rewards = tilt the landscape</text>
+    <rect x="480" y="190" width="248" height="32" rx="7" class="svCream"></rect>
+    <text x="494" y="210" text-anchor="start" class="svLs">stitches dataset fragments</text>
+  </g>
+  <text x="380" y="292" text-anchor="middle" class="svN" style="letter-spacing:0.02em">planning as conditional generation: no per-step rollout, no per-step compounding</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 5.</span> Planning by denoising (<a href="https://arxiv.org/abs/2205.09991">Janner et al., 2022</a>). Diffuser treats the whole state&#8211;action trajectory as one array and denoises it jointly &#8212; time is just another axis, so prediction error does not compound step by step. Conditioning is mechanical: pin the cells you know (start, goal) and let the model fill in the rest; preferences enter as a cost gradient nudging every denoising step.</figcaption>
+</figure>
+
+
+<p><a href="https://arxiv.org/abs/2211.15657"><strong>Decision Diffuser</strong> (Ajay et al., 2022)</a> cleaned up the recipe: diffuse <em>states only</em> (actions are high-frequency and hurt the model), read actions off with a small inverse-dynamics model, and replace the learned-classifier guidance with <em>classifier-free</em> guidance on the return &#8212; train one conditional and one unconditional score, extrapolate between them at sampling time. Two findings matter beyond D4RL points (81.8 avg vs Diffuser&rsquo;s 75.3 in their re-runs). First, <strong>composition</strong>: with per-condition scores, summing conditional deltas AND-s constraints &#8212; sample trajectories satisfying two skills jointly, having trained on each separately (their Kuka block experiments: 63.8% composed vs 52.3&#8211;60.4% single) &#8212; which is the energy-composition thesis of &#167;<a href="#compose">5.3</a> in its cleanest laboratory form, valid, per their own analysis, when the conditions are roughly independent given the trajectory. Second, the honest failure: under stochastic dynamics the whole trajectory-tilting story degrades &#8212; at 15% random-action noise Decision Diffuser falls to ~41%, near baseline, because tilting a <em>trajectory</em> density conflates what the agent controls with what the world decides. Planners that treat the future as one big sample inherit the future&rsquo;s randomness as if it were choosable. Keep that in mind every time a humanoid paper waves a trajectory-level cost at a stochastic world.</p>
+
+<p>The branch matured in three directions worth naming. <a href="https://arxiv.org/abs/2302.01877">AdaptDiffuser</a> made the planner self-improving &#8212; generate reward-guided synthetic tasks, filter with a discriminator, fine-tune (+20.8% Maze2D, +27.9% on unseen KUKA tasks). <a href="https://arxiv.org/abs/2407.01573">Model-Based Diffusion (Pan et al., 2024)</a> inverted the learning question: when you <em>know</em> the dynamics, you can compute the score of the trajectory distribution directly from the model &#8212; no data, no learned network &#8212; and use diffusion-style annealing purely as a trajectory <em>optimizer</em>, which turns out to beat sampling-based TO and RL baselines on contact-rich, high-dimensional problems including humanoids. And the field ran its own audit: a 6,000-model empirical study, <a href="https://arxiv.org/abs/2503.00535">&#8220;What Makes a Good Diffusion Planner?&#8221; (Lu et al., 2025)</a>, whose two most cited reversals are that <em>unconditional sampling plus selection often beats guided sampling</em>, and that transformers beat U-Nets as denoisers. Monte Carlo selection outperforming gradient guidance is a verdict on how badly we estimate guidance energies &#8212; the theory of which is next.</p>
+
+<h3 id="critics"><span class="sec-no">3.2</span>Critics as energies</h3>
+
+<p>On the policy side (no planning, just <em class="m">&#960;(a|s)</em>), four coupling patterns exhaust the field (Fig. 6).</p>
+
+<figure class="fig" id="fig6">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 420" role="img" aria-label="Four ways to couple a critic to a diffusion sampler: guide the sampler, regularize with Q, sample and reweight, and reinforcement learning through the denoising chain" style="min-width:640px">
+  <!-- (a) guide -->
+  <text x="190" y="28" text-anchor="middle" class="svN">(A) GUIDE THE SAMPLER</text>
+  <circle cx="70" cy="88" r="6" class="svLilac"></circle>
+  <line x1="82" y1="91" x2="140" y2="101" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="152" cy="104" r="6" class="svLilac"></circle>
+  <line x1="164" y1="107" x2="222" y2="117" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="234" cy="120" r="7" class="svTeal"></circle>
+  <text x="258" y="125" text-anchor="start" class="svN" style="letter-spacing:0">a&#8304;</text>
+  <line x1="196" y1="58" x2="160" y2="94" stroke="#ef8677" stroke-width="2" marker-end="url(#ah-coral)"></line>
+  <text x="204" y="52" text-anchor="start" class="svN" style="letter-spacing:0" fill="#d96f60">+ w&#8711;<tspan baseline-shift="sub" font-size="8">a</tspan>Q</text>
+  <text x="190" y="160" text-anchor="middle" class="svLs">sample p(a|s) &#183; e<tspan baseline-shift="super" font-size="9">&#946;Q</tspan> by tilting each step</text>
+  <text x="190" y="182" text-anchor="middle" class="svN" style="letter-spacing:0.02em">Diffuser &#183; Decision Diffuser (CFG) &#183; QGPO (exact)</text>
+
+  <!-- (b) regularize -->
+  <text x="570" y="28" text-anchor="middle" class="svN">(B) REGULARIZE WITH Q</text>
+  <circle cx="450" cy="100" r="6" class="svLilac"></circle>
+  <line x1="462" y1="100" x2="496" y2="100" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="508" cy="100" r="6" class="svLilac"></circle>
+  <line x1="520" y1="100" x2="554" y2="100" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="566" cy="100" r="6" class="svLilac"></circle>
+  <line x1="578" y1="100" x2="612" y2="100" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="624" cy="100" r="7" class="svTeal"></circle>
+  <rect x="600" y="126" width="48" height="26" rx="6" class="svBlk"></rect>
+  <text x="624" y="143" text-anchor="middle" class="svLs">Q</text>
+  <line x1="624" y1="126" x2="624" y2="112" stroke="#9a968f" stroke-width="1.6" marker-end="url(#ah-gray)"></line>
+  <path d="M 610 78 C 560 58, 490 58, 452 80" fill="none" stroke="#ef8677" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah-coral)"></path>
+  <text x="530" y="52" text-anchor="middle" class="svN" style="letter-spacing:0" fill="#d96f60">backprop through the chain</text>
+  <text x="570" y="160" text-anchor="middle" class="svLs">L = L<tspan baseline-shift="sub" font-size="9">diff</tspan> &#8722; &#945; &#183; Q(s, a&#8304;)</text>
+  <text x="570" y="182" text-anchor="middle" class="svN" style="letter-spacing:0.02em">Diffusion-QL &#183; EDP &#183; (SRPO distills instead)</text>
+
+  <!-- (c) reweight -->
+  <text x="190" y="234" text-anchor="middle" class="svN">(C) SAMPLE AND REWEIGHT</text>
+  <circle cx="66" cy="308" r="6" fill="#2b2926"></circle>
+  <text x="66" y="290" text-anchor="middle" class="svN" style="letter-spacing:0">s</text>
+  <g class="svArr">
+    <line x1="78" y1="302" x2="128" y2="266" marker-end="url(#ah-gray)"></line>
+    <line x1="78" y1="305" x2="128" y2="288" marker-end="url(#ah-gray)"></line>
+    <line x1="78" y1="308" x2="128" y2="310" marker-end="url(#ah-gray)"></line>
+    <line x1="78" y1="311" x2="128" y2="332" marker-end="url(#ah-gray)"></line>
+    <line x1="78" y1="314" x2="128" y2="354" marker-end="url(#ah-gray)"></line>
+  </g>
+  <circle cx="140" cy="264" r="5" fill="#c4c0b9"></circle>
+  <circle cx="140" cy="287" r="5" fill="#c4c0b9"></circle>
+  <circle cx="140" cy="310" r="7" class="svTeal"></circle>
+  <circle cx="140" cy="333" r="5" fill="#c4c0b9"></circle>
+  <circle cx="140" cy="356" r="5" fill="#c4c0b9"></circle>
+  <g>
+    <rect x="158" y="259" width="18" height="9" class="svBlkLt"></rect>
+    <rect x="158" y="282" width="34" height="9" class="svBlkLt"></rect>
+    <rect x="158" y="305" width="66" height="9" class="svAmber"></rect>
+    <rect x="158" y="328" width="26" height="9" class="svBlkLt"></rect>
+    <rect x="158" y="351" width="12" height="9" class="svBlkLt"></rect>
+  </g>
+  <text x="238" y="316" text-anchor="start" class="svN" style="letter-spacing:0">e<tspan baseline-shift="super" font-size="8">&#946;Q</tspan> weights</text>
+  <line x1="150" y1="310" x2="296" y2="310" stroke="#4fb3bf" stroke-width="0" ></line>
+  <text x="190" y="392" text-anchor="middle" class="svLs">draw K in-support actions, resample by the critic</text>
+  <text x="190" y="414" text-anchor="middle" class="svN" style="letter-spacing:0.02em">SfBC &#183; IDQL &#183; (selection often beats guidance)</text>
+
+  <!-- (d) RL through the chain -->
+  <text x="570" y="234" text-anchor="middle" class="svN">(D) RL THROUGH THE CHAIN</text>
+  <rect x="446" y="284" width="40" height="34" rx="6" class="svBlk"></rect>
+  <text x="466" y="306" text-anchor="middle" class="svLs">s<tspan baseline-shift="sub" font-size="9">t</tspan></text>
+  <rect x="654" y="284" width="46" height="34" rx="6" class="svBlk"></rect>
+  <text x="677" y="306" text-anchor="middle" class="svLs">s<tspan baseline-shift="sub" font-size="9">t+1</tspan></text>
+  <line x1="486" y1="301" x2="650" y2="301" class="svArr" marker-end="url(#ah-gray)"></line>
+  <path d="M 500 322 L 500 330 L 640 330 L 640 322" fill="none" stroke="#a78bdb" stroke-width="1.6"></path>
+  <circle cx="524" cy="301" r="4.5" class="svLilac"></circle>
+  <circle cx="556" cy="301" r="4.5" class="svLilac"></circle>
+  <circle cx="588" cy="301" r="4.5" class="svLilac"></circle>
+  <circle cx="620" cy="301" r="4.5" class="svLilac"></circle>
+  <text x="570" y="350" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#8a6fc0">inner MDP: each denoise step is an action</text>
+  <text x="570" y="392" text-anchor="middle" class="svLs">PPO on the micro-steps &#8212; or skip likelihoods entirely</text>
+  <text x="570" y="414" text-anchor="middle" class="svN" style="letter-spacing:0.02em">DPPO &#183; FPO &#183; GenPO &#183; RECAP (advantage-conditioned)</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 6.</span> Four ways to point a sampler at a reward, all approximating the same tilted target <em class="m">p(a|s) &#8729; e<sup>&#946;Q(s,a)</sup></em>. Guidance tilts each denoising step (exactly right only with a time-indexed energy, &#167;3.2); regularization moves the sampler&rsquo;s parameters by differentiating <em class="m">Q</em> through the chain; reweighting never touches the sampler and picks among in-support candidates; and RL treats denoising itself as a little MDP &#8212; or, at deployment scale, sidesteps likelihoods by conditioning on advantage.</figcaption>
+</figure>
+
+
+<p><strong>(a) Guide the sampler.</strong> Add <em class="m">w&#8202;&#8711;<sub>a</sub>Q</em> to the score during denoising. The subtlety, made precise by <a href="https://arxiv.org/abs/2304.12824"><strong>CEP/QGPO</strong> (Lu et al., 2023)</a>, is that correct guidance at noise level <em class="m">k</em> requires the gradient of a specific <em>intermediate-time energy</em>,</p>
+
+<div class="eq"><em class="m">E<sub>k</sub>(a<sup>k</sup>) = &#8722;log &#120124;<sub>a&#8304;|a<sup>k</sup></sub>[ e<sup>&#946;Q(s,a&#8304;)</sup> ]</em> ,</div>
+
+<p>a log-expectation under the denoising posterior &#8212; <em>not</em> the clean-action critic evaluated on noisy actions, and not even an MSE-trained noisy critic, which by Jensen&rsquo;s inequality converges to the wrong function at every <em class="m">k &gt; 0</em>. The error is largest early in sampling, exactly when modes get chosen. CEP&rsquo;s contrastive objective trains the correct <em class="m">E<sub>k</sub></em>, and the resulting QGPO posts the offline-RL numbers that made people notice (AntMaze average 78.3 in their tables, against 25.8 for chain-backprop Diffusion-QL under the same protocol &#8212; though DQL&rsquo;s own paper reports 69.6 under its own protocol, a spread worth remembering whenever D4RL tables are compared across papers). This theorem is, to my knowledge, the sharpest formal statement behind the empirical folklore that naive Q-guidance is unstable &#8212; and behind the 6,000-model finding that selection beats guidance.</p>
+
+<p><strong>(b) Regularize with Q.</strong> <a href="https://arxiv.org/abs/2208.06193"><strong>Diffusion-QL</strong> (Wang et al., 2022)</a> keeps the diffusion BC loss as the KL anchor and adds <em class="m">&#8722;&#945;&#8202;&#120124;[Q(s, a&#8304;)]</em>, backpropagating through the whole denoising chain to move the sampler&rsquo;s parameters toward higher value. It set the 2022&#8211;23 D4RL standard (Gym average 88.0) and its costs became the pattern&rsquo;s cautionary tale: five-step chains to keep memory sane, 4&#8211;5&#215; slower inference than feedforward actors, and instability on AntMaze severe enough to require offline checkpoint selection. <a href="https://arxiv.org/abs/2305.20081">EDP</a> reconstructs actions in one step during training to dodge the chain; <a href="https://arxiv.org/abs/2310.07297"><strong>SRPO</strong> (Chen et al., 2023)</a> takes the logical limit &#8212; use the frozen diffusion model only as a <em>score-providing energy term</em> regularizing a deterministic actor, recovering &gt;25&#215; faster inference at comparable D4RL scores, at the price of abandoning multimodality at deployment.</p>
+
+<p><strong>(c) Sample and reweight.</strong> Never differentiate through (or into) the sampler: draw <em class="m">K</em> candidates from the diffusion behavior model, reweight or resample by the critic &#8212; <a href="https://arxiv.org/abs/2209.14548">SfBC</a> and <a href="https://arxiv.org/abs/2304.10573"><strong>IDQL</strong> (Hansen-Estruch et al., 2023)</a>, which showed that IQL&rsquo;s expectile critic is precisely the value function of an implicit actor whose correct extraction is importance-resampling of behavior samples. Candidates are in-support by construction, so the offline-RL OOD-action pathology never appears; the ceiling is that you can only choose among what the prior proposes. This is the same &#8220;propose then verify&#8221; motif that reappears at every scale of this post &#8212; BID&rsquo;s chunk selection (&#167;2.4), world-model verifiers (&#167;4.5), safety filters (&#167;5.4).</p>
+
+<p><strong>(d) The Q-gradient as the score itself.</strong> <a href="https://arxiv.org/abs/2312.11752"><strong>QSM</strong> (Psenka et al., 2023)</a> trains the denoiser to <em>match</em> <em class="m">&#945;&#8202;&#8711;<sub>a</sub>Q(s,a)</em> directly, so that at optimality the policy is the Boltzmann distribution <em class="m">&#960; &#8733; e<sup>&#945;Q</sup></em> &#8212; the phrase &#8220;the policy&rsquo;s energy is &#8722;Q&#8221; taken fully literally, with the critic&rsquo;s action-gradient field serving as the score field. It is the most direct bridge between the RL and energy views in the literature, and (in its authors&rsquo; hands) already produced visibly multimodal locomotion policies online.</p>
+
+<h3 id="rlpost"><span class="sec-no">3.3</span>RL through (and around) the sampler</h3>
+
+<p>Fine-tuning a <em>pretrained</em> generative policy with online RL is where this all became practically consequential, and the lineage is short. <a href="https://arxiv.org/abs/2305.13301">DDPO (Black et al., 2023)</a> noticed that denoising is itself a little MDP &#8212; each reverse step a Gaussian &#8220;action&#8221; &#8212; so PPO applies per step without ever computing the sample&rsquo;s intractable likelihood. <a href="https://arxiv.org/abs/2409.00588"><strong>DPPO</strong> (Ren et al., 2024)</a> transplanted this to control as a two-layer MDP (inner: denoising; outer: environment) and set the reference results for the genre: Furniture-Bench assembly fine-tuned from 57&#8594;97%, 12&#8594;87%, 1&#8594;86%; &gt;90% from pixels on Robomimic&rsquo;s hard tasks; zero-shot sim-to-real transfer of the fine-tuned policy to a long-horizon real assembly task. Their diagnosis of <em>why</em> it beats alternatives is the important part: PPO on the denoising chain performs <em>structured, on-policy exploration around the expert manifold</em> &#8212; the sampler&rsquo;s noise schedule is a built-in exploration prior that stays near the data where BC left it. The 2025 wave then removed the scaffolding: <a href="https://arxiv.org/abs/2505.22094">ReinFlow</a> injects learnable noise into flow policies to make likelihoods exact at 1&#8211;4 steps (82.6% less wall-clock than DPPO on their suite); <a href="https://arxiv.org/abs/2505.18763">GenPO</a> builds invertible action maps so plain PPO runs on diffusion policies inside massively-parallel IsaacLab &#8212; eight benchmarks including Unitree H1 and Go2 locomotion, which is precisely the regime humanoid low-level training lives in; <a href="https://arxiv.org/abs/2507.21053">Flow Policy Optimization (McAllister et al., 2025)</a> shows you can put the conditional flow-matching loss itself inside the PPO ratio as an ELBO surrogate and train expressive policies from scratch; and the ICML-2026 crop (<a href="https://arxiv.org/abs/2604.14698">mean-flow policies under max-entropy RL</a>, <a href="https://arxiv.org/abs/2602.03501">reparameterized gradients through the flow ODE</a>) is compressing step counts toward one while keeping the RL loop stable.</p>
+
+<p>At deployment scale, nobody backpropagates through anything. <a href="https://arxiv.org/abs/2511.14759"><strong>&#960;*0.6 / RECAP</strong> (Physical Intelligence, 2025)</a> &#8212; covered from the improvement-loop side in the companion post &#8212; is, from this post&rsquo;s side, a statement about policy class: because flow VLAs &#8220;do not readily provide a tractable log-likelihood,&#8221; the RL signal enters as <em>conditioning</em>. A 201-bin distributional value function grades every trajectory (demos, autonomous rollouts, teleop corrections); a binarized advantage token is prepended during training; at inference you simply condition on &#8220;advantage: positive.&#8221; With an 860M-parameter action expert at 50&#8202;Hz, that recipe roughly doubled throughput and halved failure rates on laundry, espresso (13 hours unattended), and box assembly. Advantage-conditioned supervised learning is pattern (c) wearing production clothes: sample from the prior, let a critic decide what counts as the prior next time.</p>
+
+<h3 id="infra"><span class="sec-no">3.4</span>Diffusion as infrastructure</h3>
+
+<p>Three quieter roles round out the RL story. As a <strong>data engine</strong>: <a href="https://arxiv.org/abs/2303.06614">SynthER (Lu et al., 2023)</a> upsamples replay buffers with a transition-level diffusion model, buying bigger networks and higher update ratios in both offline and online RL &#8212; the low-rent ancestor of the world-model dream factories in &#167;<a href="#wmjobs">4.5</a>. As a <strong>state estimator</strong>: <a href="https://openreview.net/forum?id=ZULjcYLWKe">DMBP (Yang &amp; Xu, 2024)</a> flips the usual direction and denoises <em>observations</em> before a frozen policy consumes them, with a non-Markovian objective that suppresses error accumulation along the trajectory &#8212; a diffusion prior used as an observation-space energy well, pulling perturbed states back onto the manifold, and one of the most convincing robustness results in the offline literature (it holds under adversarial state attacks and missing dimensions). As a <strong>dataset repairer</strong>: <a href="https://arxiv.org/abs/2505.23871">ADG (2025)</a> uses ambient diffusion to separate and then fix corrupted training data with guarantees. And as a <strong>constraint carrier</strong>, previewing &#167;5: <a href="https://arxiv.org/abs/2401.10700">FISOR</a> converts hard safety constraints into feasibility-indexed weighted BC precisely because time-dependent guidance classifiers are hard to learn &#8212; an architectural admission of the CEP theorem &#8212; and <a href="https://arxiv.org/abs/2601.00898">DIPOLE (2026)</a> maintains two score fields (reward-seeking and reward-avoiding) and mixes them linearly at inference as a greediness dial. The pattern across all of these: the denoiser is becoming <em>infrastructure</em> &#8212; a differentiable projection onto &#8220;plausible&#8221; usable anywhere in the stack, not just at the action head.</p>
+
+<h2 id="worldmodels"><span class="sec-no">4.</span>World Models: Somewhere to Practice</h2>
+
+<h3 id="wmwhat"><span class="sec-no">4.1</span>What a world model is for</h3>
+
+<p>A world model is a learned answer to &#8220;what happens if&#8221;: a function that takes the present and a candidate course of action and returns a prediction the agent can plan, learn, or judge against. The idea is old &#8212; <a href="https://dl.acm.org/doi/10.1145/122344.122377">Dyna (Sutton, 1991)</a> already trained policies on imagined transitions &#8212; but its modern career is defined by a warning label attached early: <a href="https://arxiv.org/abs/2002.04523">Lambert et al. (2020)</a> named the <strong>objective mismatch</strong> problem, showing that one-step prediction likelihood &#8212; the thing world models are trained on &#8212; is often uncorrelated with the control performance they are deployed for. A model can be photometrically superb and dynamically useless, or crude everywhere except the narrow corridor the task actually visits. Every architecture in this section is, one way or another, a position taken on that problem, and the empirical scoreboard at the end (&#167;4.6) will vindicate the warning to a degree that should embarrass the demo reels.</p>
+
+<p>It also helps to itemize what a world model is <em>for</em>, because the jobs have wildly different error tolerances (Fig. 8): supplying <strong>representations</strong> to a policy; serving as a <strong>planning substrate</strong>; acting as a <strong>dream gym</strong> for RL; <strong>evaluating</strong> policies without hardware; <strong>generating data</strong>; and <strong>verifying actions at test time</strong>. Conflating these is the root of most cross-talk in world-model debates &#8212; including, I think, a good part of the fast-simulation-versus-learned-model argument the humanoid community keeps having.</p>
+
+<h3 id="wmcontrol"><span class="sec-no">4.2</span>The control-centric line</h3>
+
+<p>The first family predicts <em>compact task-relevant latents</em>, not observations (Fig. 7, left). <a href="https://arxiv.org/abs/1803.10122">Ha &amp; Schmidhuber (2018)</a> trained a controller entirely inside a VAE+RNN &#8220;dream&#8221; and transferred it back to a real game &#8212; establishing both the promise and the canonical failure (the policy exploits model error; their fix, sampling temperature, was the first of many hallucination taxes). <a href="https://arxiv.org/abs/1811.04551">PlaNet (Hafner et al., 2018)</a> built the RSSM &#8212; deterministic spine plus stochastic latents &#8212; and planned with CEM purely in latent space; <a href="https://arxiv.org/abs/1912.01603">Dreamer</a> replaced online planning with an actor-critic trained by backpropagating analytic value gradients through imagined latent trajectories; <a href="https://arxiv.org/abs/2010.02193">DreamerV2</a> made the latents discrete and reached human-level Atari from a learned model; <a href="https://arxiv.org/abs/2301.04104">DreamerV3</a> got one hyperparameter set to work across 150+ tasks (symlog transforms, KL balancing, assorted normalization armor) and collected Minecraft diamonds from scratch &#8212; the &#8220;out of the box&#8221; milestone that put model-based RL back in polite conversation, eventually in <em>Nature</em>.</p>
+
+<p>Two entries in this lineage matter most for roboticists. <a href="https://arxiv.org/abs/2206.14176"><strong>DayDreamer</strong> (Wu et al., 2022)</a> ran Dreamer <em>on physical robots, online, without simulators or demonstrations</em>: a Unitree A1 went from lying on its back to walking in about an hour and adapted to pushes within ten minutes; UR5 and XArm arms learned pick-and-place from pixels and sparse rewards &#8212; still the cleanest existence proof that latent imagination is sample-efficient enough for hardware. And <a href="https://arxiv.org/abs/2310.16828"><strong>TD-MPC2</strong> (Hansen et al., 2023)</a> is the purest answer to objective mismatch: its &#8220;world model&#8221; has <em>no decoder at all</em> &#8212; it is trained only on latent consistency, reward prediction, and a TD value &#8212; so the model is never asked to be right about anything control does not need. Wrapped in MPPI with a policy prior and terminal value, one configuration handles 104 online-RL tasks, and a single 317M-parameter agent covers 80 tasks across embodiments. Decoder-free latents, though, are task-blindered by construction &#8212; nothing in the objective asks them to know what a coffee mug is. That blind spot is exactly the opening the second family walked through.</p>
+
+<figure class="fig" id="fig7">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 380" role="img" aria-label="Three world-model families: latent-state models, video models, and latent-video JEPA-style models, compared by what they predict and how they are used" style="min-width:640px">
+  <line x1="256" y1="40" x2="256" y2="340" stroke="#e4e1db" stroke-width="1.4"></line>
+  <line x1="506" y1="40" x2="506" y2="340" stroke="#e4e1db" stroke-width="1.4"></line>
+
+  <!-- col 1: latent state -->
+  <text x="130" y="30" text-anchor="middle" class="svN">LATENT STATE</text>
+  <circle cx="62" cy="86" r="13" fill="#d7edef" stroke="#4fb3bf" stroke-width="1.6"></circle>
+  <text x="62" y="91" text-anchor="middle" class="svLs">z</text>
+  <line x1="78" y1="86" x2="112" y2="86" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="128" cy="86" r="13" fill="#d7edef" stroke="#4fb3bf" stroke-width="1.6"></circle>
+  <text x="128" y="91" text-anchor="middle" class="svLs">z&#8242;</text>
+  <line x1="144" y1="86" x2="178" y2="86" class="svArr" marker-end="url(#ah-gray)"></line>
+  <circle cx="194" cy="86" r="13" fill="#d7edef" stroke="#4fb3bf" stroke-width="1.6"></circle>
+  <text x="194" y="91" text-anchor="middle" class="svLs">z&#8243;</text>
+  <line x1="95" y1="120" x2="95" y2="98" stroke="#e09a2b" stroke-width="1.6" marker-end="url(#ah-amber)"></line>
+  <line x1="161" y1="120" x2="161" y2="98" stroke="#e09a2b" stroke-width="1.6" marker-end="url(#ah-amber)"></line>
+  <text x="128" y="136" text-anchor="middle" class="svN" style="letter-spacing:0">actions in</text>
+  <line x1="128" y1="66" x2="128" y2="52" stroke="#9a968f" stroke-width="1.4" marker-end="url(#ah-gray)"></line>
+  <text x="146" y="52" text-anchor="start" class="svN" style="letter-spacing:0">r, v</text>
+  <text x="130" y="172" text-anchor="middle" class="svLs">predicts task latents + r, v</text>
+  <text x="130" y="194" text-anchor="middle" class="svN" style="letter-spacing:0.02em">pixels optional or absent</text>
+  <text x="130" y="224" text-anchor="middle" class="svLs">rollouts in milliseconds</text>
+  <text x="130" y="246" text-anchor="middle" class="svN" style="letter-spacing:0.02em">imagine (actor-critic) or MPPI</text>
+  <text x="130" y="290" text-anchor="middle" class="svN">DREAMER V3 &#183; TD-MPC2</text>
+  <text x="130" y="308" text-anchor="middle" class="svN">DAYDREAMER</text>
+  <text x="130" y="338" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#3d8d97">cheap &#183; task-blindered</text>
+
+  <!-- col 2: video -->
+  <text x="380" y="30" text-anchor="middle" class="svN">VIDEO (PIXELS / TOKENS)</text>
+  <rect x="296" y="58" width="58" height="42" rx="4" class="svBlkLt" stroke="#9a968f" stroke-width="1.1"></rect>
+  <rect x="306" y="66" width="58" height="42" rx="4" class="svBlk" stroke="#2b2926" stroke-width="1.2"></rect>
+  <rect x="316" y="74" width="58" height="42" rx="4" fill="#ffffff" stroke="#2b2926" stroke-width="1.4"></rect>
+  <line x1="382" y1="95" x2="412" y2="95" class="svArr" marker-end="url(#ah-gray)"></line>
+  <rect x="416" y="74" width="58" height="42" rx="4" class="svLilacSoft" stroke="#a78bdb" stroke-width="1.4"></rect>
+  <text x="445" y="99" text-anchor="middle" class="svN" style="letter-spacing:0">t+1</text>
+  <line x1="398" y1="128" x2="398" y2="102" stroke="#e09a2b" stroke-width="1.6" marker-end="url(#ah-amber)"></line>
+  <text x="398" y="144" text-anchor="middle" class="svN" style="letter-spacing:0">a via AdaLN / tokens</text>
+  <text x="380" y="172" text-anchor="middle" class="svLs">predicts the observation itself</text>
+  <text x="380" y="194" text-anchor="middle" class="svN" style="letter-spacing:0.02em">inherits internet-video priors</text>
+  <text x="380" y="224" text-anchor="middle" class="svLs">seconds per rollout</text>
+  <text x="380" y="246" text-anchor="middle" class="svN" style="letter-spacing:0.02em">policy features &#183; sim &#183; eval &#183; data</text>
+  <text x="380" y="290" text-anchor="middle" class="svN">UNISIM &#183; GR-2 &#183; COSMOS</text>
+  <text x="380" y="308" text-anchor="middle" class="svN">GENIE 3 &#183; CTRL-WORLD</text>
+  <text x="380" y="338" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#8a6fc0">open-world &#183; expensive</text>
+
+  <!-- col 3: latent video / JEPA -->
+  <text x="632" y="30" text-anchor="middle" class="svN">LATENT VIDEO (JEPA)</text>
+  <rect x="540" y="70" width="70" height="46" rx="7" class="svTealSoft" stroke="#4fb3bf" stroke-width="1.5"></rect>
+  <text x="575" y="97" text-anchor="middle" class="svLs">enc(o<tspan baseline-shift="sub" font-size="9">t</tspan>)</text>
+  <line x1="614" y1="93" x2="648" y2="93" class="svArr" marker-end="url(#ah-gray)"></line>
+  <rect x="652" y="70" width="70" height="46" rx="7" fill="#ffffff" stroke="#4fb3bf" stroke-width="1.5" stroke-dasharray="6 4"></rect>
+  <text x="687" y="97" text-anchor="middle" class="svLs">&#7825;<tspan baseline-shift="sub" font-size="9">t+1</tspan></text>
+  <line x1="631" y1="128" x2="631" y2="100" stroke="#e09a2b" stroke-width="1.6" marker-end="url(#ah-amber)"></line>
+  <text x="631" y="144" text-anchor="middle" class="svN" style="letter-spacing:0">a</text>
+  <text x="632" y="172" text-anchor="middle" class="svLs">predicts future embeddings</text>
+  <text x="632" y="194" text-anchor="middle" class="svN" style="letter-spacing:0.02em">nothing photometric to hallucinate</text>
+  <text x="632" y="224" text-anchor="middle" class="svLs">plan = minimize distance-to-goal</text>
+  <text x="632" y="246" text-anchor="middle" class="svN" style="letter-spacing:0.02em">CEM over actions, an energy in z-space</text>
+  <text x="632" y="290" text-anchor="middle" class="svN">V-JEPA 2-AC &#183; DINO-WM</text>
+  <text x="632" y="308" text-anchor="middle" class="svN">FLARE &#183; VLA-JEPA</text>
+  <text x="632" y="338" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#3d8d97">abstract &#183; hard to inspect</text>
+
+  <text x="380" y="372" text-anchor="middle" class="svN" style="letter-spacing:0.02em">what it predicts determines what it can be trusted for</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 7.</span> Three world-model families. Latent-state models (PlaNet/Dreamer/TD-MPC) predict compact task-relevant variables plus reward and value &#8212; cheap enough to imagine thousands of rollouts per second, but blind outside the training task. Video models predict observations themselves and inherit internet-scale visual priors at real computational cost. JEPA-style models predict future <em>representations</em>, skipping pixels entirely; planning becomes energy minimization in embedding space.</figcaption>
+</figure>
+
+
+<p>A note on the perennial two-camps argument &#8212; massively parallel GPU simulation with domain randomization versus sample-efficient model-based learning. Watching real humanoid stacks come together, I no longer think these are rival philosophies; they are different layers. Low-level locomotion and tracking controllers are trained where physics is cheap, parallel, and legally allowed to be wrong (Isaac-class simulators, thousands of randomized instances); the upper layers &#8212; task policies, evaluators, data engines &#8212; are exactly where real data is scarce and learned models earn rent. The interesting engineering question was never &#8220;which camp,&#8221; but where in the stack the crossover sits, and it has been migrating upward as world models improve.</p>
+
+<h3 id="wmvideo"><span class="sec-no">4.3</span>The video line</h3>
+
+<p>The second family predicts <em>observations themselves</em> and inherits internet-scale priors (Fig. 7, middle). <a href="https://arxiv.org/abs/2302.00111">UniPi (Du et al., 2023)</a> cast decision-making as text-conditioned video generation plus a small inverse-dynamics model to read actions off the frames &#8212; the template for a hundred descendants. <a href="https://arxiv.org/abs/2310.06114">UniSim (Yang et al., 2023)</a> aggregated heterogeneous data into an action-conditioned video simulator good enough that policies trained purely inside it transferred zero-shot to a real robot. ByteDance&rsquo;s <a href="https://arxiv.org/abs/2312.13139">GR-1</a> and <a href="https://arxiv.org/abs/2410.06158">GR-2</a> demonstrated the pretraining version of the thesis &#8212; generative video pretraining then robot fine-tuning, with GR-2 reaching 97.7% average success across 100+ tabletop tasks after pretraining on 38M clips &#8212; and <a href="https://arxiv.org/abs/2412.14803">VPP (Hu et al., 2024)</a> sharpened it into the form that seems to be winning: don&rsquo;t execute generated pixels, condition your policy on the video model&rsquo;s <em>internal latents</em>, which encode &#8220;what happens next&#8221; without paying full generation cost (+18.6% relative on CALVIN ABC-D, +31.6% on real dexterous tasks).</p>
+
+<p>Three threads define the frontier. <strong>Latent actions:</strong> <a href="https://arxiv.org/abs/2402.15391">Genie (Bruce et al., 2024)</a> learned a quantized <em>latent action</em> between consecutive frames from unlabeled internet gameplay &#8212; no action labels anywhere &#8212; making action-free video a trainable control corpus; <a href="https://deepmind.google/discover/blog/genie-3-a-new-frontier-for-world-models/">Genie 3 (2025)</a> runs such worlds interactively at 720p/24&#8202;fps with consistency over minutes. The idea escaped to robotics immediately: task-centric latent actions power <a href="https://arxiv.org/abs/2505.06111">UniVLA (Bu et al., 2025)</a>, and 44,000 hours of egocentric human video pretrain <a href="https://arxiv.org/abs/2602.06949">DreamDojo (2026)</a>. If cross-embodiment skill transfer ever gets its &#8220;shared context,&#8221; my bet is it looks like this &#8212; a latent action vocabulary distilled from everyone&rsquo;s video, not a protocol negotiated between labs. <strong>Representation-space prediction:</strong> <a href="https://arxiv.org/abs/2506.09985">V-JEPA 2 (Assran et al., 2025)</a> pretrains on over a million hours of video, then post-trains a 300M action-conditioned predictor on just 62 hours of unlabeled robot data; planning is CEM minimizing L1 distance to a goal <em>embedding</em> &#8212; an explicit energy in representation space &#8212; and it executes pick-and-place at 65&#8211;80% in labs it never saw, from an uncalibrated monocular camera. Its confessed limits are as instructive as the result: sensitivity to camera pose, drift over long imagined horizons, ~16&#8202;s per planned action. <a href="https://arxiv.org/abs/2411.04983">DINO-WM</a> makes the same bet with frozen DINOv2 features. <strong>Platform world models:</strong> NVIDIA&rsquo;s <a href="https://arxiv.org/abs/2501.03575">Cosmos</a> line (Predict, <a href="https://arxiv.org/abs/2503.14492">Transfer</a>, Reason, and the 2.5 refresh) productizes the recipe &#8212; pretrained world foundation models meant to be post-trained per embodiment &#8212; and even Unitree now ships an open world-model-action framework (<a href="https://github.com/unitreerobotics/unifolm-world-model-action">UnifoLM-WMA-0</a>) targeting its own arms and the G1 we run.</p>
+
+<h3 id="wmpolicy"><span class="sec-no">4.4</span>2026: world models as policies</h3>
+
+<p>The newest turn &#8212; the organizing thesis of the <a href="https://arxiv.org/abs/2605.00080">Hou et al. survey</a> &#8212; is that the world model and the policy are fusing into one object, along a spectrum of couplings. At one end, <em>IDM-style</em> systems still generate futures and invert them to actions (UniPi&rsquo;s descendants: <a href="https://arxiv.org/abs/2512.03044">Video2Act</a>, <a href="https://arxiv.org/abs/2512.15692">mimic-video</a>, the open <a href="https://arxiv.org/abs/2512.15840">Large Video Planner</a>). In the middle, <em>joint generation</em>: <a href="https://arxiv.org/abs/2503.00200">UVA</a> and <a href="https://arxiv.org/abs/2504.02792">UWM</a> denoise video and actions in one backbone with independent per-modality noise levels, so one network is simultaneously policy, forward model, inverse model, and generator depending on which timesteps you set; <a href="https://arxiv.org/abs/2601.16163">Cosmos Policy (2026)</a> post-trains a video WFM so that <em>actions, future frames, and values are all latent frames in one denoising process</em> (LIBERO 98.5%), and NVIDIA&rsquo;s <a href="https://arxiv.org/abs/2602.15922">DreamZero (2026)</a> claims the strong form outright &#8212; &#8220;world action models are zero-shot policies&#8221; &#8212; reporting that a 14B joint video-action model generalizes to new tasks and environments at more than twice the rate of comparison VLAs, learns new embodiments from ~30 minutes of play data, and still closes a 7&#8202;Hz control loop after aggressive systems work. At the far end, <em>latent-only</em> coupling: <a href="https://arxiv.org/abs/2505.15659">FLARE</a> just aligns a few extra policy tokens with embeddings of future observations &#8212; implicit world modeling as an auxiliary loss &#8212; and banks up to +26% on multitask benchmarks plus one-shot learning of a novel object from human video.</p>
+
+<p>Then comes the cold shower, and it is one of my favorite results of the year. <a href="https://arxiv.org/abs/2603.16666"><strong>Fast-WAM</strong> (2026)</a> asks the question everyone was avoiding: do world-action models actually need to <em>imagine at test time</em>? Their controlled ablation keeps video co-training during learning but skips future generation at inference &#8212; and action quality stays competitive with imagine-then-execute variants at 190&#8202;ms latency, over 4&#215; faster, while <em>removing video co-training hurts far more</em>. Read together with VPP and FLARE, a consistent picture emerges: <strong>most of a world model&rsquo;s value to a policy is representation shaping during training</strong>; test-time imagination must justify itself separately &#8212; and where it does, per &#167;4.5, is ranking, evaluation, and deciding when <em>not</em> to trust the policy, not squeezing out marginal nominal success.</p>
+
+<h3 id="wmjobs"><span class="sec-no">4.5</span>The simulator jobs: train, evaluate, dream</h3>
+
+<figure class="fig" id="fig8">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 400" role="img" aria-label="Six jobs of a world model arranged around a hub: features, planning substrate, dream gym, evaluator, data engine, and test-time verifier" style="min-width:640px">
+  <!-- spokes -->
+  <g stroke="#c4c0b9" stroke-width="1.5">
+    <line x1="380" y1="142" x2="380" y2="106"></line>
+    <line x1="432" y1="172" x2="546" y2="128"></line>
+    <line x1="432" y1="228" x2="546" y2="272"></line>
+    <line x1="380" y1="258" x2="380" y2="294"></line>
+    <line x1="328" y1="228" x2="214" y2="272"></line>
+    <line x1="328" y1="172" x2="214" y2="128"></line>
+  </g>
+  <!-- hub -->
+  <circle cx="380" cy="200" r="60" fill="#ffffff" stroke="#2b2926" stroke-width="2.2"></circle>
+  <text x="380" y="195" text-anchor="middle" class="svLs">world</text>
+  <text x="380" y="213" text-anchor="middle" class="svLs">model</text>
+
+  <!-- chips -->
+  <g>
+    <rect x="290" y="54" width="180" height="52" rx="9" class="svTealSoft" stroke="#4fb3bf" stroke-width="1.4"></rect>
+    <text x="380" y="76" text-anchor="middle" class="svLs">features for a policy</text>
+    <text x="380" y="94" text-anchor="middle" class="svN" style="letter-spacing:0.02em">VPP &#183; FLARE &#183; GR-1</text>
+
+    <rect x="550" y="94" width="188" height="52" rx="9" class="svLilacSoft" stroke="#a78bdb" stroke-width="1.4"></rect>
+    <text x="644" y="116" text-anchor="middle" class="svLs">planning substrate</text>
+    <text x="644" y="134" text-anchor="middle" class="svN" style="letter-spacing:0.02em">TD-MPC2 &#183; V-JEPA 2-AC</text>
+
+    <rect x="550" y="254" width="188" height="52" rx="9" class="svAmberSoft" stroke="#e09a2b" stroke-width="1.4"></rect>
+    <text x="644" y="276" text-anchor="middle" class="svLs">dream gym (RL inside)</text>
+    <text x="644" y="294" text-anchor="middle" class="svN" style="letter-spacing:0.02em">Dreamer &#183; DiWA &#183; WMPO</text>
+
+    <rect x="290" y="294" width="180" height="52" rx="9" class="svCoralSoft" stroke="#ef8677" stroke-width="1.4"></rect>
+    <text x="380" y="316" text-anchor="middle" class="svLs">crash-test evaluator</text>
+    <text x="380" y="334" text-anchor="middle" class="svN" style="letter-spacing:0.02em">WorldEval &#183; Veo &#183; 1X</text>
+
+    <rect x="22" y="254" width="188" height="52" rx="9" class="svCream" stroke="#e09a2b" stroke-width="1.2"></rect>
+    <text x="116" y="276" text-anchor="middle" class="svLs">data engine (dreams)</text>
+    <text x="116" y="294" text-anchor="middle" class="svN" style="letter-spacing:0.02em">DreamGen &#183; GigaWorld-0</text>
+
+    <rect x="22" y="94" width="188" height="52" rx="9" class="svBlkLt" stroke="#9a968f" stroke-width="1.2"></rect>
+    <text x="116" y="116" text-anchor="middle" class="svLs">test-time verifier</text>
+    <text x="116" y="134" text-anchor="middle" class="svN" style="letter-spacing:0.02em">GPC &#183; NWM &#183; FFDC-WAM</text>
+  </g>
+
+  <text x="380" y="382" text-anchor="middle" class="svN" style="letter-spacing:0.02em">one model, six jobs &#8212; each with a different tolerance for prediction error</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 8.</span> Six jobs of a world model, ordered roughly by how much prediction error each can tolerate. Feature extraction only needs the model&rsquo;s <em>representations</em> to be good; planning and dream-gym RL consume its rollouts and inherit their drift; evaluation needs rank-order fidelity, not photorealism; data generation launders model bias into training data; test-time verification needs the model to be right exactly where the policy is about to be wrong.</figcaption>
+</figure>
+
+
+<p><strong>Dream gym.</strong> The Dreamer recipe now runs with generative policies inside generative models. <a href="https://arxiv.org/abs/2508.03645">DiWA (2025)</a> fine-tunes a <em>diffusion policy</em> with RL entirely inside a frozen latent world model learned from play data &#8212; the denoising chain folded into the imagination MDP &#8212; improving all eight CALVIN skills with zero additional physical interaction, then transferring fine-tuned skills to a real arm. <a href="https://arxiv.org/abs/2511.09515">WMPO (2025)</a> does on-policy GRPO for a VLA inside a <em>pixel-space</em> video world model (arguing pixel rollouts align better with a web-pretrained VLA&rsquo;s features than latents do), and its real-robot result is the one to remember: 5&#8202;mm peg insertion improving from 53% (base) to 70%, beating DPO on the same rollout budget, with emergent retry-on-failure behavior. <a href="https://arxiv.org/abs/2602.02454">World-Gymnast (2026)</a> reports RL-in-the-WM beating training in a hand-built software simulator by 2&#215; on Bridge tasks &#8212; a data point for the claim that learned simulators are becoming competitive with authored ones exactly where authoring is hard. And <a href="https://arxiv.org/abs/2603.09030">PlayWorld (2026)</a> flags the data-side catch: world models trained only on success-biased demonstrations mispredict contact-rich failures; adding autonomous <em>self-play</em> data improved failure prediction and lifted real deployed success substantially. A dream gym is only as honest about failure as the data that built it.</p>
+
+<p><strong>Crash-test evaluator.</strong> This is the job with the strongest quantitative record, and it matters because real-world evaluation is the bottleneck nobody enjoys funding:</p>
+
+<div class="tbl-scroll">
+<table class="tbl">
+<tr><th>system</th><th>setup</th><th>agreement with real success</th></tr>
+<tr><td><span class="name">WorldEval</span> <a href="https://arxiv.org/abs/2505.19017">2505.19017</a></td><td>WAN2.1 + policy-latent injection; DP, OpenVLA, DexVLA, &#960;0; 1,000+ real trials</td><td>Pearson r &#8776; 0.94; ranking error MMRV 0.044</td></tr>
+<tr><td>real-to-sim baseline (same study)</td><td>RoboTwin reconstruction, 3 tasks</td><td>r = 0.41; MMRV 0.261</td></tr>
+<tr><td><span class="name">Veo world simulator</span> <a href="https://arxiv.org/abs/2512.10675">2512.10675</a></td><td>pose-conditioned Veo2, 4-view ALOHA-2; 8 Gemini Robotics checkpoints, 1,600+ real trials</td><td>r = 0.96 nominal; 0.86 across OOD axes; MMRV 0.04</td></tr>
+<tr><td><span class="name">WorldGym</span> <a href="https://arxiv.org/abs/2506.00613">2506.00613</a></td><td>autoregressive WM + VLM reward, single real start frame</td><td>rankings preserved across sizes/checkpoints (no r reported)</td></tr>
+<tr><td><span class="name">1X world model</span> <a href="https://www.1x.tech/discover/1x-world-model">blog</a></td><td>counterfactual action proposals on EVE humanoid data</td><td>no numbers disclosed</td></tr>
+</table>
+</div>
+
+<p>Two independent groups reporting <em class="m">r &#8805; 0.94</em> with near-zero ranking error &#8212; and beating a physics-based real-to-sim reconstruction 0.94-to-0.41 under the same protocol &#8212; is the moment world-model evaluation stopped being a cute idea. The DeepMind study adds the twist I find most valuable: <em>red-teaming</em> &#8212; generatively editing scenes (novel objects, distractors, backgrounds) to probe policies, then reproducing discovered unsafe behaviors (a gripper closing a laptop onto scissors) on the real robot. The fine print stays load-bearing: predicted absolute success rates run low (rank order is the deliverable), correlation softens off-distribution, and &#167;4.6&rsquo;s benchmarks show why blind trust would be premature.</p>
+
+<p><strong>Data engine.</strong> <a href="https://arxiv.org/abs/2505.12705">DreamGen (Jang et al., 2025)</a> is the canonical pipeline &#8212; fine-tune a video WM on the target robot, prompt it for <em>new verbs in new scenes</em>, recover pseudo-actions with an inverse-dynamics or latent-action model, train the policy on the resulting &#8220;neural trajectories.&#8221; From 2,884 pick-and-place trajectories collected in a single environment, a GR-1 humanoid performed dozens of novel behaviors at 43.2% success in seen and 28.5% in unseen environments, against an 11.2% baseline &#8212; and this pipeline now feeds GR00T&rsquo;s training diet. The companion post&rsquo;s warning still stands &#8212; dreamed data injects experience no physical verifier ever touched &#8212; but the direction of travel is clear: <a href="https://arxiv.org/abs/2511.19861">GigaWorld-0 (2025)</a> bolts a 3D-reconstruction-plus-system-ID branch onto the video branch precisely to put physics back into the dreams.</p>
+
+<p><strong>Test-time verifier.</strong> The job that loops back to control: <a href="https://arxiv.org/abs/2502.00622">GPC (2025)</a> keeps a frozen diffusion policy as proposer and uses an action-conditioned world model &#8212; trained on demos <em>plus random exploration</em>, widening coverage where a verifier must be honest &#8212; to rank and refine candidate actions by predicted consequence at inference, no retraining. <a href="https://arxiv.org/abs/2605.06222">FFDC-WAM (2026)</a> makes the trust decision itself adaptive: a lightweight verifier compares the model&rsquo;s imagined future against incoming reality and lets the system keep executing a long chunk only while they agree &#8212; cutting world-model calls by 69% and improving real-world success by 35% over a short-chunk baseline. Imagination as a <em>gate</em> rather than a generator. That is the shape robustness machinery will take in &#167;5.</p>
+
+<h3 id="wmerror"><span class="sec-no">4.6</span>Compounding error, the honest ledger</h3>
+
+<p>Autoregressive prediction drifts, and optimizers exploit drift. The field&rsquo;s countermeasures now form a respectable toolbox: keep imagined rollouts short and branch them from real states (<a href="https://arxiv.org/abs/1906.08253">MBPO</a>, institutionalized in every Dreamer descendant); penalize returns by model-ensemble disagreement (<a href="https://arxiv.org/abs/2005.13239">MOPO</a> &#8212; uncertainty as pessimism, a thread &#167;5.2 picks up); train the model on its own noisy context (<a href="https://arxiv.org/abs/2408.14837">GameNGen</a>&rsquo;s noise augmentation, WMPO&rsquo;s noisy-frame conditioning, and per-frame independent noise levels in <a href="https://arxiv.org/abs/2407.01392">Diffusion Forcing (Chen et al., 2024)</a>, which is quietly becoming the standard interface between video diffusion and causal rollout); retrieve rather than remember (<a href="https://arxiv.org/abs/2510.10125">Ctrl-World</a>&rsquo;s pose-conditioned memory holds multi-view rollouts coherent past 20&#8202;s); re-anchor on keyframes (<a href="https://arxiv.org/abs/2602.13977">WoVR</a>); or post-train the model <em>on its own rollouts</em> with RL against perceptual rewards (<a href="https://arxiv.org/abs/2603.25685">Persistent Robot World Models (2026)</a> &#8212; the most direct attack yet, 98% win rate in paired comparisons on DROID rollout fidelity). The JEPA family simply refuses to predict pixels at all &#8212; and still admits representation drift over long horizons.</p>
+
+<p>Then there is the ledger&rsquo;s bottom line, and it reads like a controlled demolition of the demo reel. <a href="https://arxiv.org/abs/2510.18135"><strong>World-in-World (2025)</strong></a>, the first closed-loop world-model benchmark &#8212; models actually driving agents, task success as the metric &#8212; reports three findings: <em>visual quality alone does not predict task success; controllability matters more</em>; scaling post-training on action-observation data beats upgrading the underlying video generator; and inference-time compute meaningfully improves closed-loop performance. <a href="https://arxiv.org/abs/2604.19092">RoboWM-Bench (2026)</a> executes generated manipulation videos in physics simulation and finds visual plausibility and embodied executability &#8220;not always aligned&#8221; &#8212; failure concentrating in contact prediction and geometric consistency. And <a href="https://arxiv.org/abs/2506.21876">WM-ABench (2025)</a> reminds us the implicit world models inside VLMs are worse still &#8212; near-random on motion-trajectory discrimination, with entangled attribute representations. Lambert et al. called it in 2020: likelihood is not control. Six years and a thousand papers later, the benchmarks agree, and the systems that work are the ones engineered around that fact rather than in denial of it.</p>
+
+<h2 id="robustness"><span class="sec-no">5.</span>Robustness: What Breaks, What Helps</h2>
+
+<p>Everything so far described nominal behavior. This section is about the other kind, and it is where I want to be most careful, because it is where the conversation that seeded this post made its strongest claims: that energy landscapes give you interpretable out-of-distribution detection for free; that compositionality lets you assemble hard behaviors from verified pieces; that safety should be a separate layer rather than a property you hope emerges inside one network. Each of those claims is <em>almost</em> right, and the literature lets us say precisely where the &#8220;almost&#8221; bites.</p>
+
+<h3 id="fail"><span class="sec-no">5.1</span>How generative policies fail</h3>
+
+<p>Start with the theory the field finally has. <a href="https://arxiv.org/abs/2307.14619">Block et al. (2023)</a> prove that chunked generative behavior cloning can match the expert&rsquo;s trajectory distribution with error growing <strong>linearly in the horizon, not exponentially</strong> &#8212; the classic compounding-error nightmare provably absent &#8212; under three conditions: the learner matches the expert&rsquo;s <em>chunk distribution</em> (expressivity: &#167;1&#8211;2&rsquo;s whole argument), demonstrations are smoothed with noise that is <em>also injected at deployment</em>, and, crucially, a low-level controller with time-varying incremental stability tracks the commanded trajectory &#8212; deviations contract instead of accumulating. Every load-bearing convention in the modern recipe is an instance of an assumption in this theorem: action chunking (match distributions over sequences), position control (an implicit stabilizer &#8212; the DP ablation vindicated), even train-time noise. And the theorem&rsquo;s fine print is a map of where things still break: contact discontinuities and underactuated whole-body dynamics are exactly where incremental stability is hardest to supply. Consistent with that, the one careful study of diffusion BC for <em>whole-body humanoid control</em> (<a href="https://arxiv.org/abs/2411.01349">Kaidanov et al., 2024</a> &#8212; workshop-scale, but the only data we have) finds stable walking achievable but requiring far larger and more diverse datasets than manipulation ever needs, with domain randomization of the demonstration-generating experts doing the heavy lifting. Where there is no stabilizer to lean on, the sampler must carry the distribution-matching burden across every perturbation the world will offer, and the data bill explodes.</p>
+
+<p>Second failure class: perception, not sampling. <a href="https://arxiv.org/abs/2405.19424">DP-Attacker (Chen et al., 2024)</a> dispatches the folk theory that stochastic sampling confers adversarial robustness: imperceptible perturbations crafted through the noise-prediction loss drive RoboMimic success from 92% to 0%, and a printed patch covering ~4% of the image takes ToolHang from 86% to 2%. The denoiser faithfully samples the right action distribution <em>for the wrong observation</em>. Keep this in mind whenever someone locates all robustness hopes in the action head; the soft underbelly is upstream. Structure helps here more than sampling does &#8212; the &#167;2.6 results (3D conditioning, fixation, equivariance) are, among other things, input-robustness interventions.</p>
+
+<p>Third: the chunking bet coming due. Fig. 4&rsquo;s dilemma is a robustness statement &#8212; under disturbance, every committed chunk is stale by the time it executes &#8212; and the mitigations (per-step reselection in BID, seam inpainting in RTC, tactile fast loops in RDP) are all ways of shortening the effective open-loop window without giving up mode commitment. One genuinely encouraging observation comes from humanoid hardware: the BeyondMimic team (&#167;6) report that when their guided-diffusion controller does go out of distribution, it degrades <em>gently</em> &#8212; the robot goes compliant and inert rather than violently wrong, recoverable by a human realigning it. A distribution-matcher&rsquo;s natural failure is to fall back toward the marginal behavior prior, which for well-curated data is conservative. That is a real, if unglamorous, safety property &#8212; and it is exactly what the &#8220;stay on the data manifold&#8221; picture predicts. Related, and underappreciated: <a href="https://arxiv.org/abs/2406.00960">PDP (Truong et al., 2024)</a> shows that for perturbation recovery, <em>how you build the distillation dataset</em> dwarfs the choice of head &#8212; noisy-state/clean-action pairs (DAgger-style corrective labels around nominal trajectories) hit 100% recovery where clean-state/clean-action training manages 3%. The landscape metaphor earns its keep again: you are not just fitting behavior, you are sculpting the basin walls that pull perturbed states home.</p>
+
+<h3 id="ood"><span class="sec-no">5.2</span>Does energy tell you when? The OOD question</h3>
+
+<p>Now the seductive claim. A generative policy models <em class="m">p(a|o)</em>; a world model models <em class="m">p(o&#8242;|o,a)</em>. Surely, then, the system knows its own distribution &#8212; evaluate the energy, and when it is high, you are out of distribution, no ensembles required. I believed a version of this; the person who argued it to me over dinner believes it; and the literature says: <em>not the way you think</em>.</p>
+
+<p>The foundational pathology is <a href="https://arxiv.org/abs/1810.09136">Nalisnick et al. (2019)</a>: deep generative models trained on CIFAR-10 assign <em>higher</em> likelihood to SVHN than to their own training distribution, and the inversion recurs across flows, VAEs, and autoregressive models. Input-space density is dominated by low-level statistics &#8212; smoothness, backgrounds, variance &#8212; not by the semantic novelty you care about. The apparent counterexample, <a href="https://arxiv.org/abs/2010.03759">energy-based OOD detection (Liu et al., 2020)</a>, actually sharpens the diagnosis: their energy score (a logsumexp over logits) works well precisely because it is computed from a <em>discriminatively trained</em> network whose features are task-shaped. And <a href="https://arxiv.org/abs/2407.00626">Yoon et al. (2024)</a> complete the triangulation from the diffusion side: an EBM jointly trained with a diffusion sampler under a max-entropy inverse-RL objective reaches 97% anomaly-detection AUC on MVTec &#8212; in feature space, with an entropy term whose ablation collapses performance to 68%. The honest generalization: <strong>energy signals novelty in proportion to how task-shaped the representation is and how deliberately the energy was trained to behave off-manifold</strong>. Raw likelihood of a policy&rsquo;s denoiser inherits none of that by default.</p>
+
+<p>Robotics then adds its own twist, which I consider the deepest point in this subsection: <strong>out-of-distribution is not the event you care about.</strong> Failure is. A competent policy <em>generalizing</em> is out of distribution and fine; a policy dithering between modes is in distribution and about to fail. <a href="https://arxiv.org/abs/2410.04640">Sentinel (Agia et al., 2024)</a> built the decisive experiment: embedding-distance and reconstruction-error baselines &#8220;conflated OOD states with failures,&#8221; while the two signals that worked track <em>behavior</em>. Their fast signal, STAC, exploits the fact that a generative policy is a distribution you can query: sample a batch of action chunks now and a batch at the next replan, compare the overlapping-horizon marginals with a statistical distance (MMD), alarm when accumulated divergence crosses a threshold calibrated to a false-positive budget on successful rollouts. Erratic failures: 99&#8211;100% true-positive rate at 85&#8211;97% true-negative in their manipulation suites, 100%/90% on a real mobile manipulator pushing chairs. Their slow signal is a VLM watching the video and answering &#8220;is this making progress?&#8221; (14&#8202;s latency, run asynchronously) &#8212; catching the failures that are smooth, confident, and wrong. The two catch <em>disjoint</em> failure classes; the union detects 18% more than either. Meanwhile <a href="https://arxiv.org/abs/2503.08558">FAIL-Detect (2025)</a> keeps the density idea alive in chastened form: across sixteen settings, the best single score was an observation-conditioned learned density (logpZO) &#8212; task-shaped, in policy space, 36&#8211;44&#215; cheaper than STAC &#8212; topping out around 75% balanced accuracy, which is both &#8220;clearly better than chance&#8221; and &#8220;nowhere near solved.&#8221; The 2025&#8211;26 wave probes the policy&rsquo;s own internals (<a href="https://arxiv.org/abs/2506.09937">SAFE</a>: a failure head on VLA features that transfers across OpenVLA, &#960;0, &#960;0-FAST) or fuses novelty and action-uncertainty channels (<a href="https://arxiv.org/abs/2510.09459">FIPER</a>), with everything calibrated conformally on successful rollouts. One level up, at the plan rather than the action, conformal prediction closes the loop to the human: <a href="https://arxiv.org/abs/2307.01928">KnowNo (Ren et al., 2023)</a> wraps an LLM planner&rsquo;s options in prediction sets with a user-chosen coverage guarantee and has the robot ask for help exactly when the set is not a singleton &#8212; matching target success with 10&#8211;24% less human intervention than heuristic triggering. Uncertainty, exposed on schedule and with a warranty, is a feature; the same instinct hidden inside a softmax is a liability.</p>
+
+<p>Where does that leave the two intuitions from the dinner table? <em>Ensembles</em>: deep ensembles (<a href="https://arxiv.org/abs/1612.01474">Lakshminarayanan et al., 2017</a>) remain the classical gold standard, but I could not find one published ensemble-disagreement runtime monitor for a billion-parameter VLA &#8212; M&#215; training and M&#215; inference at control rates priced them out, and single-model internal probes filled the niche. The ensemble <em>idea</em> survived in miniature, though: STAC&rsquo;s batch of sampled chunks is an ensemble of futures from one network, disagreement measured in action space &#8212; you already paid for the sampler; sample more. <em>Energy</em>: the landscape does carry robustness information &#8212; but as sculpted basins that pull perturbed states home (DMBP, PDP) and as task-shaped learned scores (logpZO), not as a free OOD meter read off the policy&rsquo;s likelihood.</p>
+
+<div class="aside"><span class="aside-tag">What I&rsquo;d actually run at 10 Hz</span>
+Per chunk: sample a batch of futures (32&#8211;256 on GPU &#8212; you are sampling anyway), compute a STAC-style overlap divergence, plus one cheap learned score &#8212; observation-conditioned density or RND in the policy&rsquo;s embedding, plus an internal-feature probe if the policy is a VLA. Asynchronously, every few seconds: a VLM progress check. Calibrate every threshold conformally on successful rollouts with an explicit false-positive budget; route erratic-type alarms to the safety layer (freeze, damp, retreat) and progression-type alarms to a human question. Do not ship raw denoiser likelihood as your OOD signal; that is the one configuration the literature has specifically falsified.
+</div>
+
+<h3 id="compose"><span class="sec-no">5.3</span>Test-time composition and constrained sampling</h3>
+
+<p>The second dinner-table claim: energies compose &#8212; train pieces, sum them, get behavior no single piece knew. The aspiration is legitimate and old (<a href="https://arxiv.org/abs/2004.06030">Du et al., 2020</a> worked out the algebra: sum for AND, mixture for OR, subtraction for NOT), it is the bet behind at least one startup&rsquo;s entire research program (Logical Intelligence, on compositional energy-based reasoning), and robotics already uses it daily in modest form: Decision Diffuser AND-ing constraints by summing conditional score deltas (&#167;3.1); <a href="https://arxiv.org/abs/2407.06169">potential-based motion planning (Luo et al., 2024)</a> generalizing to cluttered scenes by adding potentials trained only on simple ones; SE(3)-DiffusionFields dropping a learned grasp energy into a classical cost stack; and, on real humanoid hardware, BeyondMimic steering a motion prior with summed task costs (Fig. 9, and &#167;6).</p>
+
+<figure class="fig" id="fig9">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 330" role="img" aria-label="Test-time composition of energies: a data prior, a task cost, and a safety barrier sum into the landscape the policy actually samples from" style="min-width:640px">
+  <text x="380" y="24" text-anchor="middle" class="svN">GRADIENT OF A SUM = SUM OF GRADIENTS &#8212; COMPOSE AT TEST TIME</text>
+
+  <!-- P1: data prior -->
+  <line x1="30" y1="210" x2="180" y2="210" stroke="#c4c0b9" stroke-width="1.2"></line>
+  <path d="M 32 110 C 52 112, 55 193, 75 195 C 92 197, 96 152, 106 150 C 116 148, 121 198, 137 200 C 153 202, 158 122, 176 112" fill="none" stroke="#2b2926" stroke-width="2.2"></path>
+  <text x="105" y="240" text-anchor="middle" class="svLs">E<tspan baseline-shift="sub" font-size="9">data</tspan>(a | o)</text>
+  <text x="105" y="260" text-anchor="middle" class="svN" style="letter-spacing:0.02em">what demos look like</text>
+  <text x="197" y="165" text-anchor="middle" class="svT">+</text>
+
+  <!-- P2: task cost -->
+  <line x1="215" y1="210" x2="365" y2="210" stroke="#c4c0b9" stroke-width="1.2"></line>
+  <path d="M 220 188 L 358 118" fill="none" stroke="#e09a2b" stroke-width="2.2"></path>
+  <text x="290" y="240" text-anchor="middle" class="svLs">&#955; &#183; c<tspan baseline-shift="sub" font-size="9">task</tspan>(a)</text>
+  <text x="290" y="260" text-anchor="middle" class="svN" style="letter-spacing:0.02em">waypoint &#183; return &#183; style</text>
+  <text x="382" y="165" text-anchor="middle" class="svT">+</text>
+
+  <!-- P3: safety barrier -->
+  <line x1="400" y1="210" x2="550" y2="210" stroke="#c4c0b9" stroke-width="1.2"></line>
+  <path d="M 404 192 L 490 192 C 505 190, 508 130, 514 108 L 518 96" fill="none" stroke="#ef8677" stroke-width="2.2"></path>
+  <g stroke="#ef8677" stroke-width="1.2" opacity="0.55">
+    <line x1="506" y1="206" x2="518" y2="194"></line>
+    <line x1="516" y1="206" x2="528" y2="194"></line>
+    <line x1="526" y1="206" x2="538" y2="194"></line>
+    <line x1="536" y1="206" x2="548" y2="194"></line>
+  </g>
+  <text x="529" y="88" text-anchor="middle" class="svN" style="letter-spacing:0" fill="#d96f60">h(a) &lt; 0</text>
+  <text x="475" y="240" text-anchor="middle" class="svLs">&#956; &#183; c<tspan baseline-shift="sub" font-size="9">safe</tspan>(a)</text>
+  <text x="475" y="260" text-anchor="middle" class="svN" style="letter-spacing:0.02em">barrier &#183; collision &#183; limits</text>
+  <text x="567" y="165" text-anchor="middle" class="svT">=</text>
+
+  <!-- P4: composite -->
+  <line x1="585" y1="210" x2="735" y2="210" stroke="#c4c0b9" stroke-width="1.2"></line>
+  <path d="M 587 118 C 600 120, 603 200, 621 202 C 637 204, 642 168, 652 166 C 664 164, 673 140, 686 120 C 696 105, 703 98, 710 92" fill="none" stroke="#2b2926" stroke-width="2.4"></path>
+  <g stroke="#ef8677" stroke-width="1.2" opacity="0.55">
+    <line x1="694" y1="206" x2="706" y2="194"></line>
+    <line x1="704" y1="206" x2="716" y2="194"></line>
+    <line x1="714" y1="206" x2="726" y2="194"></line>
+  </g>
+  <circle cx="621" cy="196" r="6" class="svTeal"></circle>
+  <path d="M 668 150 C 655 165, 645 180, 633 190" fill="none" stroke="#4fb3bf" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#ah-teal)"></path>
+  <text x="660" y="240" text-anchor="middle" class="svLs">what you sample</text>
+  <text x="660" y="260" text-anchor="middle" class="svN" style="letter-spacing:0.02em">one basin survives</text>
+
+  <!-- caveat chip -->
+  <rect x="120" y="286" width="520" height="34" rx="8" class="svCream"></rect>
+  <text x="380" y="307" text-anchor="middle" class="svLs">caveat: adding scores &#8776; sampling the product &#8212; exactly only with care (&#167;5.3)</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 9.</span> Guidance is energy arithmetic. The learned prior supplies a landscape whose basins are the behaviors in the data; task costs tilt it; safety barriers wall off regions of action space; the sampler descends the sum. Everything after the prior is added <em>at test time</em>, without retraining &#8212; the compositionality that drew people to energy-based models, inherited by diffusion through its score. The fine print in &#167;5.3: naive score addition only approximates the product of distributions, and the approximation is worst early in denoising, exactly when modes get chosen.</figcaption>
+</figure>
+
+
+<p>The asterisk is precise, and it comes from the people who most wanted composition to work. <a href="https://arxiv.org/abs/2302.11552">Du et al. (2023)</a>: to sample a <em>product</em> of two diffusion models correctly, you need the score of the <em>diffused product</em> &#8212; but adding the models&rsquo; scores gives you the <em>product of the diffused marginals</em>, and &#8220;these are not equal for t &gt; 0.&#8221; Score addition is exact only at the final instant of denoising; everywhere earlier &#8212; where modes get chosen &#8212; it is an approximation with no accuracy dial. Their fix is instructive: parameterize an explicit energy (so Metropolis corrections are computable) and run annealed MCMC at each noise level; on composition benchmarks the corrections take 5-constraint accuracy from 57% to 73%, and classifier-guidance accuracy on ImageNet from 19% to 95%. The same Jensen-gap geometry underlies the CEP theorem for reward guidance (&#167;3.2). And the hardware evidence rhymes: BeyondMimic&rsquo;s guidance is the uncorrected sum, and its reported failure mode &#8212; getting trapped in the current mode, guidance failing when the target lies far across the manifold &#8212; is precisely the local-mode pathology the corrected samplers were designed to fix. To my knowledge nobody has yet run Metropolis-corrected composition on a robot; there is a paper&rsquo;s worth of low-hanging fruit in that sentence.</p>
+
+<p>Safety constraints via sampling deserve their own accounting, because &#8220;the samples satisfy the constraint&#8221; and &#8220;the robot is safe&#8221; are different theorems. <a href="https://arxiv.org/abs/2306.00148">SafeDiffuser (Xiao et al., 2023)</a> embeds a control-barrier-function condition into every denoising step &#8212; each update solves a tiny QP so the evolving trajectory can never exit the safe set once inside it (&#8220;finite-time diffusion invariance&#8221;), with relaxed variants to avoid samples freezing on the constraint boundary. It certifies exactly what it says: the <em>generated waypoints</em> satisfy <em class="m">b(&#964;) &#8805; 0</em> &#8212; not the closed-loop execution, not dynamic feasibility, and at 0.05&#8211;0.15&#8202;s of QP per denoising step. <a href="https://arxiv.org/abs/2504.08661">Safe Flow Matching (2025)</a> ports the idea to flow policies training-free; <a href="https://arxiv.org/abs/2405.04235">LTLDoG</a> swaps the barrier for temporal-logic satisfaction (&#8220;avoid the kitchen until it&rsquo;s clean&#8221;); <a href="https://arxiv.org/abs/2401.10700">FISOR</a> gets hard-constraint offline RL by identifying the feasible region with Hamilton-Jacobi reachability and reducing policy extraction to feasibility-weighted BC. The sharpest reality check is <a href="https://arxiv.org/abs/2409.19190">RAIL (2024)</a>, which put a hard reachability filter <em>outside</em> imitation policies and discovered that some high-scoring policies had been quietly buying their benchmark numbers with constraint violations. Constrained sampling shapes proposals; a runtime filter defends reality; you want both, and you especially want the proposer trained or guided to stay inside the filter&rsquo;s comfort zone so the two do not fight &#8212; a filter that constantly overrides a confident sampler produces exactly the chattering, out-of-distribution inputs the sampler handles worst.</p>
+
+<h3 id="layers"><span class="sec-no">5.4</span>The layered runtime</h3>
+
+<p>Which brings us to the architecture (Fig. 10). The control-theory community has a clean abstraction for the bottom half: a <strong>safety filter</strong> &#8212; <a href="https://arxiv.org/abs/2309.05837">Hsu, Hu &amp; Fisac (2023)</a> unify CBF-QPs, Hamilton-Jacobi least-restrictive controllers, and predictive filters as instances of one pattern, a <em>monitor</em> deciding when to intervene plus an <em>intervention</em> deciding what to do instead. The canonical instance is the <a href="https://arxiv.org/abs/1903.11199">CBF-QP (Ames et al., 2019)</a>:</p>
+
+<div class="eq"><em class="m">u* = argmin<sub>u</sub> &#8214;u &#8722; u<sub>prop</sub>&#8214;<sup>2</sup> &nbsp;&nbsp;s.t.&nbsp;&nbsp; &#8711;h(x)&#183;(f(x) + g(x)&#8202;u) &#8805; &#8722;&#945;(h(x))</em> ,</div>
+
+<p>the minimal correction keeping the state inside the certified set. How far do certificates actually reach? The strongest verified neural-Lyapunov results (<a href="https://arxiv.org/abs/2404.07956">Yang et al., 2024</a>) certify systems of 6&#8211;8 state dimensions, with verification times from seconds to minutes, and their authors say plainly that dimensionality remains the obstacle. A 29-DoF humanoid lives around seventy state dimensions before you count perception. <strong>There is no certified stability or safety result anywhere near a full humanoid, and anyone implying otherwise is selling something.</strong> What deployed legged systems actually run is a principled-but-uncertified middle: learned reach-avoid values switching between agile and recovery policies (<a href="https://arxiv.org/abs/2401.17583">ABS</a>), an <a href="https://arxiv.org/abs/2412.09989">observation-conditioned reachability filter (2024)</a> screening arbitrary controllers on a real quadruped in unknown environments, CBF constraints synthesized online from perception inside an MPC on humanoid hardware (<a href="https://arxiv.org/abs/2508.11129">Ames&rsquo; group, 2025</a>), and safe-falling reflexes as the final layer (<a href="https://arxiv.org/abs/2310.04828">Guardians as You Fall</a>).</p>
+
+<figure class="fig" id="fig10">
+<div class="fig-scroll">
+<svg viewBox="0 0 760 440" role="img" aria-label="A layered robot runtime: generative proposer, runtime monitor with a human escalation path, safety filter, tracking controller, robot; a world model serves the top of the stack and massively parallel simulation trains the bottom" style="min-width:640px">
+  <!-- main stack -->
+  <rect x="150" y="40" width="300" height="52" rx="9" class="svLilacSoft" stroke="#a78bdb" stroke-width="1.6"></rect>
+  <text x="300" y="62" text-anchor="middle" class="svLs">generative proposer</text>
+  <text x="300" y="80" text-anchor="middle" class="svN" style="letter-spacing:0.02em">VLA / diffusion policy &#183; action chunks</text>
+  <text x="462" y="86" text-anchor="start" class="svN" style="letter-spacing:0.02em">1&#8211;10 Hz</text>
+  <line x1="300" y1="92" x2="300" y2="114" class="svArrI" marker-end="url(#ah-ink)"></line>
+
+  <rect x="150" y="118" width="300" height="52" rx="9" class="svAmberSoft" stroke="#e09a2b" stroke-width="1.6"></rect>
+  <text x="300" y="140" text-anchor="middle" class="svLs">runtime monitor</text>
+  <text x="300" y="158" text-anchor="middle" class="svN" style="letter-spacing:0.02em">consistency &#183; conformal &#183; value &#183; per chunk</text>
+  <line x1="300" y1="170" x2="300" y2="192" class="svArrI" marker-end="url(#ah-ink)"></line>
+
+  <rect x="150" y="196" width="300" height="52" rx="9" class="svCoralSoft" stroke="#ef8677" stroke-width="1.6"></rect>
+  <text x="300" y="218" text-anchor="middle" class="svLs">safety filter</text>
+  <text x="300" y="236" text-anchor="middle" class="svN" style="letter-spacing:0.02em">CBF-QP / HJ shield &#183; projects u</text>
+  <text x="462" y="216" text-anchor="start" class="svN" style="letter-spacing:0.02em">100&#8211;500 Hz</text>
+  <line x1="300" y1="248" x2="300" y2="270" class="svArrI" marker-end="url(#ah-ink)"></line>
+
+  <rect x="150" y="274" width="300" height="52" rx="9" class="svTealSoft" stroke="#4fb3bf" stroke-width="1.6"></rect>
+  <text x="300" y="296" text-anchor="middle" class="svLs">tracking controller</text>
+  <text x="300" y="314" text-anchor="middle" class="svN" style="letter-spacing:0.02em">RL whole-body / MPC</text>
+  <text x="462" y="294" text-anchor="start" class="svN" style="letter-spacing:0.02em">50 Hz &#8594; 1 kHz PD</text>
+  <line x1="300" y1="326" x2="300" y2="348" class="svArrI" marker-end="url(#ah-ink)"></line>
+
+  <rect x="150" y="352" width="300" height="46" rx="9" class="svBlk"></rect>
+  <text x="300" y="380" text-anchor="middle" class="svLs">robot</text>
+  <text x="462" y="378" text-anchor="start" class="svN" style="letter-spacing:0.02em">torques</text>
+
+  <!-- world model, serving the top -->
+  <rect x="18" y="46" width="112" height="118" rx="9" class="svBox" stroke-dasharray="7 5"></rect>
+  <text x="74" y="76" text-anchor="middle" class="svLs">world</text>
+  <text x="74" y="94" text-anchor="middle" class="svLs">model</text>
+  <text x="74" y="120" text-anchor="middle" class="svN" style="letter-spacing:0.02em">rehearse &#183; rank</text>
+  <text x="74" y="136" text-anchor="middle" class="svN" style="letter-spacing:0.02em">eval &#183; dream data</text>
+  <path d="M 130 70 L 146 62" fill="none" stroke="#4fb3bf" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah-teal)"></path>
+  <path d="M 146 86 L 130 92" fill="none" stroke="#9a968f" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah-gray)"></path>
+
+  <!-- parallel sim, serving the bottom -->
+  <rect x="18" y="266" width="112" height="68" rx="9" class="svBox" stroke-dasharray="7 5"></rect>
+  <text x="74" y="292" text-anchor="middle" class="svLs">parallel sim</text>
+  <text x="74" y="310" text-anchor="middle" class="svN" style="letter-spacing:0.02em">GPU physics + DR</text>
+  <path d="M 130 300 L 146 300" fill="none" stroke="#4fb3bf" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah-teal)"></path>
+  <text x="74" y="352" text-anchor="middle" class="svN" style="letter-spacing:0.02em">trains the low level</text>
+
+  <!-- human escalation -->
+  <ellipse cx="640" cy="144" rx="96" ry="34" class="svCream" stroke="#e09a2b" stroke-width="1.4"></ellipse>
+  <text x="640" y="140" text-anchor="middle" class="svLs">human</text>
+  <text x="640" y="158" text-anchor="middle" class="svN" style="letter-spacing:0.02em">confirm &#183; correct &#183; take over</text>
+  <line x1="452" y1="144" x2="540" y2="144" stroke="#e09a2b" stroke-width="1.8" marker-end="url(#ah-amber)"></line>
+  <text x="496" y="136" text-anchor="middle" class="svN" style="letter-spacing:0.02em" fill="#b07c22">ask when unsure</text>
+  <path d="M 616 108 C 588 66, 512 46, 458 48" fill="none" stroke="#9a968f" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah-gray)"></path>
+  <text x="586" y="66" text-anchor="middle" class="svN" style="letter-spacing:0.02em">corrections &#8594; data</text>
+
+  <text x="380" y="428" text-anchor="middle" class="svLs">certificates live low &#183; expressiveness lives high &#183; trust flows through the monitor</text>
+</svg>
+</div>
+<figcaption><span class="figno">Fig. 10.</span> The layered runtime that real humanoid stacks are converging on. A generative policy proposes action chunks at 1&#8211;10 Hz; a runtime monitor scores them (temporal consistency, conformal sets, value estimates) and escalates to a human when unsure; a safety filter projects commands into a certified constraint set at hundreds of Hz; an RL tracking controller turns them into torques at PD rates. A world model serves the top of the stack &#8212; rehearsal, candidate ranking, offline evaluation, dream data &#8212; while massively parallel simulation with domain randomization trains the bottom. No single layer is trusted with everything.</figcaption>
+</figure>
+
+
+<p>Stack the sections of this post and the architecture assembles itself, layer by layer, each defending against the failure mode of the one above: a <strong>generative proposer</strong> &#8212; expressive, multimodal, data-hungry, occasionally wrong (&#167;2); a <strong>runtime monitor</strong> &#8212; consistency statistics, learned scores, conformal ask-for-help (&#167;5.2); a <strong>safety filter</strong> &#8212; certified where physics allows, principled where it does not (&#167;5.3&#8211;5.4); a <strong>tracking controller</strong> &#8212; the incremental stability Block et al.&rsquo;s theorem demands, trained in massively parallel simulation (&#167;4.2); and beside the stack, a <strong>world model</strong> rehearsing, ranking, and red-teaming offline (&#167;4.5), with humans receiving the escalations and their corrections flowing back as training signal. Readers of the companion post will recognize the last arrow as the data engine&rsquo;s front door. I will admit a conflict of interest &#8212; a runtime with a certified floor, an uncertainty-exposing middle, and a learning loop on top is more or less the thesis my company is built on &#8212; but the convergence is not mine to claim: the graphics community&rsquo;s planner/tracker splits (<a href="https://arxiv.org/abs/2410.03441">CLoSD</a>), the first humanoid systems with explicit OOD gates between generator and tracker (<a href="https://arxiv.org/abs/2603.23983">SafeFlow, 2026</a> &#8212; Mahalanobis screening, sensitivity checks, hard limit filters), and frontier LLM deployments &#8212; a capable generator behind a screen of cheap classifiers &#8212; all landed on the same shape. No single published robot system yet stacks all four layers with a certified filter. Someone will assemble it within a year or two, and they will mostly be doing systems integration on results that already exist.</p>
+
+<h2 id="humanoids"><span class="sec-no">6.</span>Humanoids: The Hard Case</h2>
+
+<p>Humanoids stress every claim in this post simultaneously: underactuated floating-base dynamics, contact that makes and breaks many times a second, twenty-nine-plus degrees of freedom before you count fingers, and a failure mode &#8212; falling &#8212; that costs hardware, time, and occasionally collarbones. They also force a distinction that the phrase &#8220;stable policy&#8221; blurs, and that I have come to think is the single most clarifying idea in this whole area. <strong>Distributional stability</strong> is a property of the sampler: perturbed inputs still map to the data manifold; the policy&rsquo;s behavior stays inside the distribution it was trained to imitate. <strong>Dynamical stability</strong> is a property of the closed loop: disturbances decay; the center of mass stays capturable; the robot does not fall. Neither implies the other. A diffusion policy can be perfectly faithful to its training distribution while walking a dynamically doomed trajectory, and an RL tracking controller can be dynamically iron-clad while producing motion no dataset ever blessed. The working humanoid stacks of 2024&#8211;26 are, almost without exception, machines for pairing the two: a <em>tracking substrate</em> that supplies dynamical stability at high rate, and a <em>generative layer</em> that supplies distributional richness on top.</p>
+
+<p>The substrate came first and is by now industrial: teacher-student RL trackers trained in massively parallel simulation under heavy domain randomization &#8212; <a href="https://arxiv.org/abs/2406.08858">OmniH2O</a> (kinematic pose as a universal command interface, Unitree H1), <a href="https://arxiv.org/abs/2410.21229">HOVER</a> (one policy distilled from an AMASS-trained oracle, serving 15+ command modes), <a href="https://arxiv.org/abs/2412.13196">ExBody2</a> (a 50&#8202;Hz student over a 500&#8202;Hz joint interface on G1 and H1, with careful motion-set curation). This is the fast-parallel-simulation camp&rsquo;s decisive win, and it is precisely the incremental stability that Block et al.&rsquo;s theorem asks the low level to provide. What sat unsolved on top was versatility: one tracking policy per motion family, one task-specific RL run per behavior, and nothing that composed.</p>
+
+<p><a href="https://arxiv.org/abs/2508.08241"><strong>BeyondMimic</strong> (Liao et al., 2025)</a> is the first system to close this post&rsquo;s loop on real humanoid hardware &#8212; to my knowledge, the first guided-diffusion controller deployed on a real humanoid. The recipe is a clean instance of everything above. Bottom: a library of per-clip DeepMimic-style tracking policies (one unified MDP and hyperparameter set across all clips; adaptive sampling of failure-prone segments), strong enough to execute 29 challenging LAFAN1-class motions &#8212; cartwheels, spin-jumps, sprints &#8212; on a Unitree G1. Top: a single <em>state-action co-diffusion</em> model (the <a href="https://arxiv.org/abs/2503.11801">Diffuse-CLoC</a> design) distilled from those trackers &#8212; horizon 16, DDPM with 20 denoising iterations, ~20&#8202;ms per plan running <em>asynchronously offboard</em> on a laptop-class GPU while sub-millisecond onboard inference and 500&#8202;Hz state estimation keep the robot upright between plans. Control at test time is pure &#167;5.3: classifier guidance with autodifferentiated costs &#8212; joystick velocity, waypoint reaching, signed-distance obstacle avoidance through a relaxed barrier &#8212; steering a motion prior that was never trained on any of those tasks. Even the ablations teach the general lesson: switching the diffused state representation from joint rotations to body positions moves a perturbed-walking task from 72% to 100% and a joystick task from 0% to 80% &#8212; representation, not capacity, was the wall. And its failure modes are the two asterisks of this post made flesh: mode-trapping (uncorrected score-sum composition, &#167;5.3) and guidance that cannot reach far-off-manifold targets, with out-of-distribution excursions degrading into compliant inertness rather than violence.</p>
+
+<div class="tbl-scroll">
+<table class="tbl">
+<tr><th>system</th><th>what&rsquo;s generated</th><th>rates</th><th>hardware</th><th>steering</th></tr>
+<tr><td><span class="name">BeyondMimic</span> <a href="https://arxiv.org/abs/2508.08241">2508.08241</a></td><td>state-action chunks (H=16, DDPM-20)</td><td>~20 ms/plan offboard, async; &lt;1 ms onboard; 500 Hz state est.</td><td>real Unitree G1</td><td>test-time cost guidance (joystick, waypoint, obstacle)</td></tr>
+<tr><td><span class="name">DiffuseLoco</span> <a href="https://arxiv.org/abs/2404.19264">2404.19264</a></td><td>action chunks, multi-skill (DDPM; DDIM rejected)</td><td>real-time on mounted mini-PC (RTX 4060M); predict 4, execute 1; inputs delayed one step</td><td>real Unitree Go1; Cassie sim-only (real transfer failed)</td><td>goal conditioning only</td></tr>
+<tr><td><span class="name">DreamControl</span> <a href="https://arxiv.org/abs/2509.14353">2509.14353</a></td><td>diffusion prior guides RL <em>training</em>, not inference</td><td>n/a</td><td>real Unitree G1</td><td>human-motion prior + task rewards</td></tr>
+<tr><td><span class="name">SafeFlow</span> <a href="https://arxiv.org/abs/2603.23983">2603.23983</a></td><td>whole-body motion via rectified flow in a VAE latent</td><td>&#8220;real-time&#8221; (Reflow-accelerated)</td><td>real Unitree G1</td><td>text; 3-stage gate: Mahalanobis OOD &#183; sensitivity &#183; hard limits</td></tr>
+<tr><td><span class="name">iDP3</span> <a href="https://arxiv.org/abs/2410.10803">2410.10803</a></td><td>manipulation action chunks (egocentric 3D)</td><td>&#8212;</td><td>real 25-DoF humanoid (upper body)</td><td>none (visuomotor)</td></tr>
+<tr><td><span class="name">CLoSD</span> <a href="https://arxiv.org/abs/2410.03441">2410.03441</a></td><td>kinematic motion (autoregressive diffusion, 2 s horizon, 10 steps)</td><td>planner ~175&#215; real time; RL tracker in-loop</td><td>sim humanoid</td><td>text + targets; tracker fine-tuned closed-loop</td></tr>
+</table>
+</div>
+
+<p>Around that centerpiece, the supporting results each pin down one degree of freedom. <a href="https://arxiv.org/abs/2404.19264">DiffuseLoco (Huang et al., 2024)</a> established that offline-distilled multi-skill diffusion runs <em>onboard</em> a real quadruped in real time &#8212; and, honestly, that the same recipe did not survive sim-to-real on the Cassie biped, a negative result worth more than most positives. <a href="https://arxiv.org/abs/2509.14353">DreamControl (2025)</a> shows the prior can guide RL <em>training</em> instead of test-time sampling &#8212; moving the diffusion tax offline entirely. <a href="https://arxiv.org/abs/2603.23983">SafeFlow (2026)</a> is, as far as I can tell, the first humanoid system whose middle layer is explicitly a monitor: a three-stage gate (Mahalanobis OOD screening in text-embedding space, directional-sensitivity checks, hard joint and velocity limits) between the flow generator and any of three tracking controllers. iDP3 covers the manipulation half. And for the trajectory-optimization purists, <a href="https://arxiv.org/abs/2407.01573">Model-Based Diffusion</a> shows annealed denoising beating sampling-based TO on high-dimensional humanoid problems <em>with the score computed from the known model</em> &#8212; diffusion as optimizer, no learning at all.</p>
+
+<p>The curse of dimensionality, which every humanoid conversation eventually reaches, shows up here in a specific and slightly unexpected form. Nobody has beaten it head-on; everything that works changes the space instead: hierarchies (tracking primitives below, generative unifier above &#8212; BeyondMimic, CLoSD), latent spaces (SafeFlow&rsquo;s VAE, the latent-planning lineage of &#167;3), and &#8212; the cheapest trick with the biggest measured effect &#8212; state representations chosen so that the manifold is geometrically simple (body-frame positions over joint angles). From our own G1 work I will add only the unglamorous corollary: the layers fail on different days. The tracking substrate, forged in randomized simulation, shrugs at pushes that would never appear in any demonstration dataset; the generative layer handles task variety no reward engineer would enumerate; and the integration bugs live exactly at their interface &#8212; frame conventions, latency budgets, and who gets to veto whom. That interface, not either layer, is where I have spent most of my debugging hours, and it is where I would point new research attention.</p>
+
+<h2 id="open"><span class="sec-no">7.</span>Open Problems</h2>
+
+<p>Ordered roughly from &#8220;someone will do this next year&#8221; to &#8220;someone should be embarrassed nobody has started.&#8221;</p>
+
+<ol>
+  <li><p><strong>Corrected composition on hardware.</strong> The gap between score-summing and product-sampling (&#167;5.3) is quantified in image land and implicated in humanoid mode-trapping, yet no robot runs Metropolis-corrected or otherwise principled compositional guidance. The obstacles are concrete &#8212; explicit energy parameterization, MCMC steps inside a 20&#8202;ms budget &#8212; and all look amortizable. Whoever does this gets to write &#8220;we fixed BeyondMimic&rsquo;s mode-trapping with 2019 statistics&#8221; as a contribution line.</p></li>
+  <li><p><strong>Certify the sampler &#8212; or certify around it honestly.</strong> SafeDiffuser certifies waypoints; CBFs certify low-dimensional invariance; nothing certifies a closed loop containing a billion-parameter sampler, and &#167;5.4&rsquo;s dimensionality wall says nothing will soon. The tractable middle: certified viability of the <em>tracking layer</em> under bounded proposer misbehavior &#8212; treat the generative layer as a disturbance with a contract, and prove the floor holds for any proposer that honors it. That is a theorem someone in a controls department could state today, and it would do more for deployment than another point of LIBERO.</p></li>
+  <li><p><strong>Make energy mean something.</strong> The OOD verdict (&#167;5.2) is not that energies are useless; it is that nobody trains policy energies to be meaningful off-manifold. The ingredients exist separately &#8212; entropy-regularized IRL energies that detect anomalies, observation-conditioned densities that top failure-detection tables, conformal calibration on success-only data. A denoiser trained with an explicit, calibrated, off-manifold-shaped energy head &#8212; the landscape as instrument, not metaphor &#8212; would give the humanoid community the interpretable dashboard it keeps asking for.</p></li>
+  <li><p><strong>Guidance under stochasticity.</strong> Trajectory-level tilting conflates what the agent controls with what the world decides (&#167;3.1); Decision Diffuser&rsquo;s collapse at 15% action noise is the smoking gun, and disturbance is the humanoid&rsquo;s natural habitat. Guidance that tilts only the controllable factors &#8212; policy-space rather than trajectory-space energies, or explicit noise-marginalized costs &#8212; is theory-shaped work with immediate hardware consequences.</p></li>
+  <li><p><strong>Distill without losing the hooks.</strong> One-step students (&#167;2.4) discard the iterative structure that guidance, inpainting, STAC-style consistency monitoring, and RTC-style seam repair all attach to. Latency and steerability are currently traded against each other paper by paper. A distillation objective that provably preserves a guidance interface &#8212; or a streaming sampler with a standing composition API &#8212; would let the fast policies keep the safety machinery.</p></li>
+  <li><p><strong>Trust calibration for world-model evaluation.</strong> Two groups report r &#8805; 0.94 policy-ranking fidelity (&#167;4.5); closed-loop benchmarks simultaneously show visual quality decoupled from control utility (&#167;4.6). Both are true, which means we do not yet know <em>when</em> a world-model verdict transfers. Who evaluates the evaluator &#8212; on what OOD axes, with what conformal wrapper, audited by how much real hardware &#8212; is about to become the load-bearing question of every fleet&rsquo;s deployment gate, and right now the answer is vibes plus 1,600 trials from one lab at DeepMind.</p></li>
+  <li><p><strong>A benchmark that shoves back.</strong> Manipulation suites test nominal success; humanoid robustness lives in perturbations that arrive mid-chunk. There is no standard benchmark where disturbance timing, magnitude, and observability are first-class axes and where chunked generative policies must be compared at matched latency. Relatedly &#8212; a complaint from the dinner conversation I have not been able to shake &#8212; the field lacks its pendulum: a low-dimensional problem that still exhibits the real pathologies (multimodal demonstrations, contact discontinuity, disturbance mid-commitment) so that theory can actually engage. The double pendulum of generative control is unclaimed.</p></li>
+  <li><p><strong>Latent actions as the cross-embodiment contract.</strong> If skills are to transfer across bodies, the shared currency will not be joint trajectories; the latent-action lineage (&#167;4.3&#8212;Genie, UniVLA, DreamDojo) is quietly building the candidate vocabulary from video. What is missing is the <em>grounding contract</em>: guarantees about what a latent action means on a new embodiment, and a cheap procedure for certifying the decoder. Cross-embodiment transfer without that contract is anecdote collection.</p></li>
+</ol>
+
+<hr class="sect">
+
+<p>The through-line, stated once more without equations. Robot policies became samplers because the world demanded distributions &#8212; multimodal demonstrations, committed sequences, uncertainty that ought to be visible rather than averaged away. Sampling turned out to come with a geometry: landscapes whose basins are behaviors, whose gradients are trainable, whose sums are new behaviors, and whose value as a warning light is real but only after deliberate calibration &#8212; the energy view, valid with exactly two asterisks (conservative fields; products versus summed scores). World models grew up alongside as the place to practice &#8212; six jobs, six error tolerances, with the surprising 2026 lesson that their largest gift to policies is representation, and their sharpest deployed edge is judgment: ranking, evaluating, red-teaming, deciding when not to trust. And robustness, the thing the whole conversation was supposedly about, turned out not to live in any single model at all. It lives in an architecture &#8212; propose, monitor, filter, track &#8212; where the sampler is one layer, bounded above by a question it can be asked (&#8220;are your futures consistent?&#8221;) and below by a floor it cannot break. A humanoid that stays up through a shove it never trained for is not exhibiting one network&rsquo;s genius; it is exhibiting four layers each doing a bounded job, and the seams between them holding. Build the seams first.</p>
+
+<h2 id="citation">Citation</h2>
+
+<p>Cited as:</p>
+
+<blockquote><p>Xu, Alice. &ldquo;Life on the Edge of the Distribution.&rdquo; Field Notes (Sep 2026). <a href="https://curiouseralice.github.io/posts/life-on-the-edge-of-the-distribution/">https://curiouseralice.github.io/posts/life-on-the-edge-of-the-distribution/</a>.</p></blockquote>
+
+<p>Or</p>
+
+<pre class="bibtex">@article{xu2026lifeontheedge,
+  title   = {Life on the Edge of the Distribution},
+  author  = {Xu, Alice},
+  journal = {Field Notes},
+  year    = {2026},
+  month   = {September},
+  url     = {https://curiouseralice.github.io/posts/life-on-the-edge-of-the-distribution/}
+}</pre>
+
+<h2 id="references">References</h2>
+
+<div class="refs">
+<ol>
+  <li>Hou, B. et al. <a href="https://arxiv.org/abs/2605.00080">&ldquo;World Model for Robot Learning: A Comprehensive Survey.&rdquo;</a> arXiv 2026.</li>
+  <li>Xu, Alice. <a href="https://curiouseralice.github.io/posts/learning-on-the-job/">&ldquo;Learning on the Job: Test-Time Adaptation and the Road to Self-Improving Robots.&rdquo;</a> Field Notes, Sep 2026.</li>
+  <li>Mandlekar, A. et al. <a href="https://arxiv.org/abs/2108.03298">&ldquo;What Matters in Learning from Offline Human Demonstrations for Robot Manipulation (robomimic).&rdquo;</a> CoRL 2021.</li>
+  <li>Brohan, A. et al. <a href="https://arxiv.org/abs/2212.06817">&ldquo;RT-1: Robotics Transformer for Real-World Control at Scale.&rdquo;</a> RSS 2023.</li>
+  <li>Brohan, A. et al. <a href="https://arxiv.org/abs/2307.15818">&ldquo;RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control.&rdquo;</a> CoRL 2023.</li>
+  <li>Zhao, T. Z. et al. <a href="https://arxiv.org/abs/2304.13705">&ldquo;Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware (ACT/ALOHA).&rdquo;</a> RSS 2023.</li>
+  <li>Florence, P. et al. <a href="https://arxiv.org/abs/2109.00137">&ldquo;Implicit Behavioral Cloning.&rdquo;</a> CoRL 2021.</li>
+  <li>Chi, C. et al. <a href="https://arxiv.org/abs/2303.04137">&ldquo;Diffusion Policy: Visuomotor Policy Learning via Action Diffusion.&rdquo;</a> RSS 2023; IJRR 2024.</li>
+  <li>Song, Y. &amp; Ermon, S. <a href="https://arxiv.org/abs/1907.05600">&ldquo;Generative Modeling by Estimating Gradients of the Data Distribution.&rdquo;</a> NeurIPS 2019.</li>
+  <li>Salimans, T. &amp; Ho, J. <a href="https://openreview.net/forum?id=9AS-TF2jRNb">&ldquo;Should EBMs Model the Energy or the Score?&rdquo;</a> ICLR 2021 EBM Workshop.</li>
+  <li>Reuss, M. et al. <a href="https://arxiv.org/abs/2304.02532">&ldquo;Goal-Conditioned Imitation Learning using Score-based Diffusion Policies (BESO).&rdquo;</a> RSS 2023.</li>
+  <li>Prasad, A. et al. <a href="https://arxiv.org/abs/2405.07503">&ldquo;Consistency Policy: Accelerated Visuomotor Policies via Consistency Distillation.&rdquo;</a> RSS 2024.</li>
+  <li>Lu, G. et al. <a href="https://arxiv.org/abs/2406.01586">&ldquo;ManiCM: Real-time 3D Diffusion Policy via Consistency Model.&rdquo;</a> arXiv 2024.</li>
+  <li>Wang, Z. et al. <a href="https://arxiv.org/abs/2410.21257">&ldquo;One-Step Diffusion Policy: Fast Visuomotor Policies via Diffusion Distillation.&rdquo;</a> arXiv 2024.</li>
+  <li>H&#248;eg, S. H., Du, Y. &amp; Egeland, O. <a href="https://arxiv.org/abs/2406.04806">&ldquo;Streaming Diffusion Policy: Fast Policy Synthesis with Variable Noise Diffusion Models.&rdquo;</a> arXiv 2024.</li>
+  <li>Jiang, S. et al. <a href="https://arxiv.org/abs/2505.21851">&ldquo;Streaming Flow Policy.&rdquo;</a> CoRL 2025.</li>
+  <li>Black, K., Galliker, M. &amp; Levine, S. <a href="https://arxiv.org/abs/2506.07339">&ldquo;Real-Time Execution of Action Chunking Flow Policies (RTC).&rdquo;</a> NeurIPS 2025.</li>
+  <li>Liu, Y. et al. <a href="https://arxiv.org/abs/2408.17355">&ldquo;Bidirectional Decoding: Improving Action Chunking via Closed-Loop Resampling (BID).&rdquo;</a> ICLR 2025.</li>
+  <li>Liu, S. et al. <a href="https://arxiv.org/abs/2410.07864">&ldquo;RDT-1B: A Diffusion Foundation Model for Bimanual Manipulation.&rdquo;</a> ICLR 2025.</li>
+  <li>Black, K. et al. <a href="https://arxiv.org/abs/2410.24164">&ldquo;&#960;0: A Vision-Language-Action Flow Model for General Robot Control.&rdquo;</a> Physical Intelligence, 2024.</li>
+  <li>Physical Intelligence. <a href="https://arxiv.org/abs/2504.16054">&ldquo;&#960;0.5: A Vision-Language-Action Model with Open-World Generalization.&rdquo;</a> 2025.</li>
+  <li>Octo Model Team. <a href="https://arxiv.org/abs/2405.12213">&ldquo;Octo: An Open-Source Generalist Robot Policy.&rdquo;</a> RSS 2024.</li>
+  <li>Kim, M. J., Finn, C. &amp; Liang, P. <a href="https://arxiv.org/abs/2502.19645">&ldquo;Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success (OpenVLA-OFT).&rdquo;</a> RSS 2025.</li>
+  <li>Bjorck, J. et al. <a href="https://arxiv.org/abs/2503.14734">&ldquo;GR00T N1: An Open Foundation Model for Generalist Humanoid Robots.&rdquo;</a> NVIDIA, 2025.</li>
+  <li>TRI LBM Team. <a href="https://arxiv.org/abs/2507.05331">&ldquo;A Careful Examination of Large Behavior Models for Multitask Dexterous Manipulation.&rdquo;</a> Toyota Research Institute, 2025.</li>
+  <li>Shukor, M. et al. <a href="https://arxiv.org/abs/2506.01844">&ldquo;SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics.&rdquo;</a> Hugging Face, 2025.</li>
+  <li>Ze, Y. et al. <a href="https://arxiv.org/abs/2403.03954">&ldquo;3D Diffusion Policy: Generalizable Visuomotor Policy Learning via Simple 3D Representations (DP3).&rdquo;</a> RSS 2024.</li>
+  <li>Ze, Y. et al. <a href="https://arxiv.org/abs/2410.10803">&ldquo;Generalizable Humanoid Manipulation with Improved 3D Diffusion Policies (iDP3).&rdquo;</a> arXiv 2024.</li>
+  <li>Ke, T.-W., Gkanatsios, N. &amp; Fragkiadaki, K. <a href="https://arxiv.org/abs/2402.10885">&ldquo;3D Diffuser Actor: Policy Diffusion with 3D Scene Representations.&rdquo;</a> CoRL 2024.</li>
+  <li>Wang, D. et al. <a href="https://arxiv.org/abs/2407.01812">&ldquo;Equivariant Diffusion Policy.&rdquo;</a> CoRL 2024.</li>
+  <li>Yang, J. et al. <a href="https://arxiv.org/abs/2407.01479">&ldquo;EquiBot: SIM(3)-Equivariant Diffusion Policy for Generalizable and Data Efficient Learning.&rdquo;</a> CoRL 2024.</li>
+  <li>Xue, H. et al. <a href="https://arxiv.org/abs/2503.02881">&ldquo;Reactive Diffusion Policy: Slow-Fast Visual-Tactile Policy Learning for Contact-Rich Manipulation.&rdquo;</a> RSS 2025.</li>
+  <li>Urain, J. et al. <a href="https://arxiv.org/abs/2209.03855">&ldquo;SE(3)-DiffusionFields: Learning Smooth Cost Functions for Joint Grasp and Motion Optimization through Diffusion.&rdquo;</a> ICRA 2023.</li>
+  <li>Janner, M., Du, Y., Tenenbaum, J. B. &amp; Levine, S. <a href="https://arxiv.org/abs/2205.09991">&ldquo;Planning with Diffusion for Flexible Behavior Synthesis (Diffuser).&rdquo;</a> ICML 2022.</li>
+  <li>Ajay, A. et al. <a href="https://arxiv.org/abs/2211.15657">&ldquo;Is Conditional Generative Modeling All You Need for Decision-Making? (Decision Diffuser).&rdquo;</a> ICLR 2023.</li>
+  <li>Liang, Z. et al. <a href="https://arxiv.org/abs/2302.01877">&ldquo;AdaptDiffuser: Diffusion Models as Adaptive Self-Evolving Planners.&rdquo;</a> ICML 2023.</li>
+  <li>Pan, C., Yi, Z., Shi, G. &amp; Qu, G. <a href="https://arxiv.org/abs/2407.01573">&ldquo;Model-Based Diffusion for Trajectory Optimization.&rdquo;</a> NeurIPS 2024.</li>
+  <li>Lu, H., Han, D., Shen, Y. &amp; Li, D. <a href="https://arxiv.org/abs/2503.00535">&ldquo;What Makes a Good Diffusion Planner for Decision Making?&rdquo;</a> ICLR 2025.</li>
+  <li>Lu, C. et al. <a href="https://arxiv.org/abs/2304.12824">&ldquo;Contrastive Energy Prediction for Exact Energy-Guided Diffusion Sampling in Offline RL (CEP/QGPO).&rdquo;</a> ICML 2023.</li>
+  <li>Wang, Z., Hunt, J. J. &amp; Zhou, M. <a href="https://arxiv.org/abs/2208.06193">&ldquo;Diffusion Policies as an Expressive Policy Class for Offline Reinforcement Learning (Diffusion-QL).&rdquo;</a> ICLR 2023.</li>
+  <li>Kang, B. et al. <a href="https://arxiv.org/abs/2305.20081">&ldquo;Efficient Diffusion Policies for Offline Reinforcement Learning (EDP).&rdquo;</a> NeurIPS 2023.</li>
+  <li>Chen, H. et al. <a href="https://arxiv.org/abs/2310.07297">&ldquo;Score Regularized Policy Optimization through Diffusion Behavior (SRPO).&rdquo;</a> ICLR 2024.</li>
+  <li>Chen, H. et al. <a href="https://arxiv.org/abs/2209.14548">&ldquo;Offline Reinforcement Learning via High-Fidelity Generative Behavior Modeling (SfBC).&rdquo;</a> ICLR 2023.</li>
+  <li>Hansen-Estruch, P. et al. <a href="https://arxiv.org/abs/2304.10573">&ldquo;IDQL: Implicit Q-Learning as an Actor-Critic Method with Diffusion Policies.&rdquo;</a> arXiv 2023.</li>
+  <li>Psenka, M. et al. <a href="https://arxiv.org/abs/2312.11752">&ldquo;Learning a Diffusion Model Policy from Rewards via Q-Score Matching (QSM).&rdquo;</a> ICML 2024.</li>
+  <li>Black, K. et al. <a href="https://arxiv.org/abs/2305.13301">&ldquo;Training Diffusion Models with Reinforcement Learning (DDPO).&rdquo;</a> ICLR 2024.</li>
+  <li>Ren, A. Z. et al. <a href="https://arxiv.org/abs/2409.00588">&ldquo;Diffusion Policy Policy Optimization (DPPO).&rdquo;</a> ICLR 2025.</li>
+  <li>Zhang, T. et al. <a href="https://arxiv.org/abs/2505.22094">&ldquo;ReinFlow: Fine-tuning Flow Matching Policy with Online Reinforcement Learning.&rdquo;</a> NeurIPS 2025.</li>
+  <li>Ding, S. et al. <a href="https://arxiv.org/abs/2505.18763">&ldquo;GenPO: Generative Diffusion Models Meet On-Policy Reinforcement Learning.&rdquo;</a> NeurIPS 2025.</li>
+  <li>McAllister, D. et al. <a href="https://arxiv.org/abs/2507.21053">&ldquo;Flow Matching Policy Gradients (FPO).&rdquo;</a> ICLR 2026.</li>
+  <li>Dong, X., Zhang, X. S. &amp; Cheng, J. <a href="https://arxiv.org/abs/2604.14698">&ldquo;Mean Flow Policy Optimization.&rdquo;</a> ICML 2026.</li>
+  <li>Zhong, H. et al. <a href="https://arxiv.org/abs/2602.03501">&ldquo;Reparameterization Flow Policy Optimization.&rdquo;</a> ICML 2026.</li>
+  <li>Physical Intelligence. <a href="https://arxiv.org/abs/2511.14759">&ldquo;&#960;*0.6: A VLA That Learns From Experience (RECAP).&rdquo;</a> Nov 2025; <a href="https://www.pi.website/blog/pistar06">blog</a>.</li>
+  <li>Lu, C., Ball, P. J., Teh, Y. W. &amp; Parker-Holder, J. <a href="https://arxiv.org/abs/2303.06614">&ldquo;Synthetic Experience Replay (SynthER).&rdquo;</a> NeurIPS 2023.</li>
+  <li>Yang, Z. &amp; Xu, Y. <a href="https://openreview.net/forum?id=ZULjcYLWKe">&ldquo;DMBP: Diffusion Model-Based Predictor for Robust Offline Reinforcement Learning Against State Observation Perturbations.&rdquo;</a> ICLR 2024.</li>
+  <li>Liu, Z. et al. <a href="https://arxiv.org/abs/2505.23871">&ldquo;ADG: Ambient Diffusion-Guided Dataset Recovery for Corruption-Robust Offline Reinforcement Learning.&rdquo;</a> NeurIPS 2025.</li>
+  <li>Zheng, Y. et al. <a href="https://arxiv.org/abs/2401.10700">&ldquo;Safe Offline Reinforcement Learning with Feasibility-Guided Diffusion Model (FISOR).&rdquo;</a> ICLR 2024.</li>
+  <li>Liang, R. et al. <a href="https://arxiv.org/abs/2601.00898">&ldquo;Dichotomous Diffusion Policy Optimization (DIPOLE).&rdquo;</a> ICLR 2026.</li>
+  <li>Sutton, R. S. <a href="https://dl.acm.org/doi/10.1145/122344.122377">&ldquo;Dyna, an Integrated Architecture for Learning, Planning, and Reacting.&rdquo;</a> SIGART Bulletin 2(4), 1991.</li>
+  <li>Lambert, N., Amos, B., Yadan, O. &amp; Calandra, R. <a href="https://arxiv.org/abs/2002.04523">&ldquo;Objective Mismatch in Model-Based Reinforcement Learning.&rdquo;</a> L4DC 2020.</li>
+  <li>Ha, D. &amp; Schmidhuber, J. <a href="https://arxiv.org/abs/1803.10122">&ldquo;World Models.&rdquo;</a> NeurIPS 2018.</li>
+  <li>Hafner, D. et al. <a href="https://arxiv.org/abs/1811.04551">&ldquo;Learning Latent Dynamics for Planning from Pixels (PlaNet).&rdquo;</a> ICML 2019.</li>
+  <li>Hafner, D. et al. <a href="https://arxiv.org/abs/1912.01603">&ldquo;Dream to Control: Learning Behaviors by Latent Imagination (Dreamer).&rdquo;</a> ICLR 2020.</li>
+  <li>Hafner, D. et al. <a href="https://arxiv.org/abs/2010.02193">&ldquo;Mastering Atari with Discrete World Models (DreamerV2).&rdquo;</a> ICLR 2021.</li>
+  <li>Hafner, D. et al. <a href="https://arxiv.org/abs/2301.04104">&ldquo;Mastering Diverse Domains through World Models (DreamerV3).&rdquo;</a> <em>Nature</em>, 2025.</li>
+  <li>Wu, P. et al. <a href="https://arxiv.org/abs/2206.14176">&ldquo;DayDreamer: World Models for Physical Robot Learning.&rdquo;</a> CoRL 2022.</li>
+  <li>Hansen, N., Su, H. &amp; Wang, X. <a href="https://arxiv.org/abs/2310.16828">&ldquo;TD-MPC2: Scalable, Robust World Models for Continuous Control.&rdquo;</a> ICLR 2024.</li>
+  <li>Janner, M., Fu, J., Zhang, M. &amp; Levine, S. <a href="https://arxiv.org/abs/1906.08253">&ldquo;When to Trust Your Model: Model-Based Policy Optimization (MBPO).&rdquo;</a> NeurIPS 2019.</li>
+  <li>Yu, T. et al. <a href="https://arxiv.org/abs/2005.13239">&ldquo;MOPO: Model-Based Offline Policy Optimization.&rdquo;</a> NeurIPS 2020.</li>
+  <li>Du, Y. et al. <a href="https://arxiv.org/abs/2302.00111">&ldquo;Learning Universal Policies via Text-Guided Video Generation (UniPi).&rdquo;</a> NeurIPS 2023.</li>
+  <li>Yang, M. et al. <a href="https://arxiv.org/abs/2310.06114">&ldquo;Learning Interactive Real-World Simulators (UniSim).&rdquo;</a> ICLR 2024.</li>
+  <li>Wu, H. et al. <a href="https://arxiv.org/abs/2312.13139">&ldquo;Unleashing Large-Scale Video Generative Pre-training for Visual Robot Manipulation (GR-1).&rdquo;</a> ICLR 2024.</li>
+  <li>Cheang, C.-L. et al. <a href="https://arxiv.org/abs/2410.06158">&ldquo;GR-2: A Generative Video-Language-Action Model with Web-Scale Knowledge for Robot Manipulation.&rdquo;</a> ByteDance, 2024.</li>
+  <li>Hu, Y. et al. <a href="https://arxiv.org/abs/2412.14803">&ldquo;Video Prediction Policy: A Generalist Robot Policy with Predictive Visual Representations (VPP).&rdquo;</a> ICML 2025.</li>
+  <li>Bruce, J. et al. <a href="https://arxiv.org/abs/2402.15391">&ldquo;Genie: Generative Interactive Environments.&rdquo;</a> ICML 2024.</li>
+  <li>Google DeepMind. <a href="https://deepmind.google/discover/blog/genie-3-a-new-frontier-for-world-models/">&ldquo;Genie 3: A New Frontier for World Models.&rdquo;</a> Aug 2025.</li>
+  <li>Bu, Q. et al. <a href="https://arxiv.org/abs/2505.06111">&ldquo;UniVLA: Learning to Act Anywhere with Task-Centric Latent Actions.&rdquo;</a> RSS 2025.</li>
+  <li>NVIDIA. <a href="https://arxiv.org/abs/2602.06949">&ldquo;DreamDojo: A Generalist Robot World Model from Large-Scale Human Videos.&rdquo;</a> 2026.</li>
+  <li>Assran, M. et al. <a href="https://arxiv.org/abs/2506.09985">&ldquo;V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning.&rdquo;</a> Meta, 2025.</li>
+  <li>Zhou, G. et al. <a href="https://arxiv.org/abs/2411.04983">&ldquo;DINO-WM: World Models on Pre-trained Visual Features Enable Zero-shot Planning.&rdquo;</a> arXiv 2024.</li>
+  <li>NVIDIA. <a href="https://arxiv.org/abs/2501.03575">&ldquo;Cosmos World Foundation Model Platform for Physical AI.&rdquo;</a> 2025; <a href="https://arxiv.org/abs/2503.14492">&ldquo;Cosmos-Transfer1.&rdquo;</a> 2025.</li>
+  <li>Unitree Robotics. <a href="https://github.com/unitreerobotics/unifolm-world-model-action">&ldquo;UnifoLM-WMA-0: A World-Model-Action Framework for General-Purpose Robot Learning.&rdquo;</a> 2025 (open release).</li>
+  <li>Li, S. et al. <a href="https://arxiv.org/abs/2503.00200">&ldquo;Unified Video Action Model (UVA).&rdquo;</a> RSS 2025.</li>
+  <li>Zhu, C. et al. <a href="https://arxiv.org/abs/2504.02792">&ldquo;Unified World Models: Coupling Video and Action Diffusion for Pretraining on Large Robotic Datasets (UWM).&rdquo;</a> RSS 2025.</li>
+  <li><a href="https://arxiv.org/abs/2512.03044">&ldquo;Video2Act: A Dual-System Video Diffusion Policy with Robotic Spatio-Motional Modeling.&rdquo;</a> arXiv 2025.</li>
+  <li>mimic robotics. <a href="https://arxiv.org/abs/2512.15692">&ldquo;mimic-video: Video-Action Models for Generalizable Robot Control Beyond VLAs.&rdquo;</a> arXiv 2025.</li>
+  <li>Chen, B. et al. <a href="https://arxiv.org/abs/2512.15840">&ldquo;Large Video Planner Enables Generalizable Robot Control (LVP).&rdquo;</a> arXiv 2025.</li>
+  <li>NVIDIA. <a href="https://arxiv.org/abs/2601.16163">&ldquo;Cosmos Policy: Fine-Tuning Video Models for Visuomotor Control and Planning.&rdquo;</a> 2026.</li>
+  <li>NVIDIA. <a href="https://arxiv.org/abs/2602.15922">&ldquo;DreamZero: World Action Models are Zero-shot Policies.&rdquo;</a> 2026.</li>
+  <li>Zheng, R. et al. <a href="https://arxiv.org/abs/2505.15659">&ldquo;FLARE: Robot Learning with Implicit World Modeling.&rdquo;</a> CoRL 2025.</li>
+  <li>Yuan, T. et al. <a href="https://arxiv.org/abs/2603.16666">&ldquo;Do World Action Models Need Test-Time Future Imagination? (Fast-WAM).&rdquo;</a> arXiv 2026.</li>
+  <li>Chandra, A. L. et al. <a href="https://arxiv.org/abs/2508.03645">&ldquo;DiWA: Diffusion Policy Adaptation with World Models.&rdquo;</a> CoRL 2025.</li>
+  <li><a href="https://arxiv.org/abs/2511.09515">&ldquo;WMPO: World Model-based Policy Optimization for Vision-Language-Action Models.&rdquo;</a> ICLR 2026.</li>
+  <li><a href="https://arxiv.org/abs/2602.02454">&ldquo;World-Gymnast: Training Robots with Reinforcement Learning in a World Model.&rdquo;</a> arXiv 2026.</li>
+  <li><a href="https://arxiv.org/abs/2603.09030">&ldquo;PlayWorld: Learning Robot World Models from Autonomous Play.&rdquo;</a> arXiv 2026.</li>
+  <li>Li, Y. et al. <a href="https://arxiv.org/abs/2505.19017">&ldquo;WorldEval: World Model as Real-World Robot Policies Evaluator.&rdquo;</a> arXiv 2025.</li>
+  <li>Google DeepMind. <a href="https://arxiv.org/abs/2512.10675">&ldquo;Evaluating Gemini Robotics Policies in a Veo World Simulator.&rdquo;</a> 2025.</li>
+  <li><a href="https://arxiv.org/abs/2506.00613">&ldquo;WorldGym: World Model as an Environment for Policy Evaluation.&rdquo;</a> ICLR 2026.</li>
+  <li>1X Technologies. <a href="https://www.1x.tech/discover/1x-world-model">&ldquo;1X World Model.&rdquo;</a> Company blog, 2024.</li>
+  <li>Jang, J. et al. <a href="https://arxiv.org/abs/2505.12705">&ldquo;DreamGen: Unlocking Generalization in Robot Learning through Video World Models.&rdquo;</a> CoRL 2025.</li>
+  <li>GigaAI. <a href="https://arxiv.org/abs/2511.19861">&ldquo;GigaWorld-0: World Models as Data Engine to Empower Embodied AI.&rdquo;</a> 2025.</li>
+  <li><a href="https://arxiv.org/abs/2502.00622">&ldquo;Inference-Time Enhancement of Generative Robot Policies via Predictive World Modeling (GPC).&rdquo;</a> RA-L 2026.</li>
+  <li><a href="https://arxiv.org/abs/2605.06222">&ldquo;When to Trust Imagination: Adaptive Action Execution for World Action Models (FFDC-WAM).&rdquo;</a> arXiv 2026.</li>
+  <li>Chen, B. et al. <a href="https://arxiv.org/abs/2407.01392">&ldquo;Diffusion Forcing: Next-Token Prediction Meets Full-Sequence Diffusion.&rdquo;</a> NeurIPS 2024.</li>
+  <li>Valevski, D. et al. <a href="https://arxiv.org/abs/2408.14837">&ldquo;Diffusion Models Are Real-Time Game Engines (GameNGen).&rdquo;</a> ICLR 2025.</li>
+  <li>Guo, Y. et al. <a href="https://arxiv.org/abs/2510.10125">&ldquo;Ctrl-World: A Controllable Generative World Model for Robot Manipulation.&rdquo;</a> ICLR 2026.</li>
+  <li><a href="https://arxiv.org/abs/2602.13977">&ldquo;WoVR: World Models as Reliable Simulators for Post-Training VLA Policies with RL.&rdquo;</a> arXiv 2026.</li>
+  <li><a href="https://arxiv.org/abs/2603.25685">&ldquo;Persistent Robot World Models: Stabilizing Multi-Step Rollouts via Reinforcement Learning.&rdquo;</a> arXiv 2026.</li>
+  <li><a href="https://arxiv.org/abs/2510.18135">&ldquo;World-in-World: World Models in a Closed-Loop World.&rdquo;</a> ICLR 2026.</li>
+  <li><a href="https://arxiv.org/abs/2604.19092">&ldquo;RoboWM-Bench: A Benchmark for Evaluating World Models in Robotic Manipulation.&rdquo;</a> arXiv 2026.</li>
+  <li><a href="https://arxiv.org/abs/2506.21876">&ldquo;Do Vision-Language Models Have Internal World Models? Towards an Atomic Evaluation (WM-ABench).&rdquo;</a> ACL Findings 2025.</li>
+  <li>Block, A. et al. <a href="https://arxiv.org/abs/2307.14619">&ldquo;Provable Guarantees for Generative Behavior Cloning: Bridging Low-Level Stability and High-Level Behavior.&rdquo;</a> NeurIPS 2023.</li>
+  <li>Kaidanov, F. et al. <a href="https://arxiv.org/abs/2411.01349">&ldquo;The Role of Domain Randomization in Training Diffusion Policies for Whole-Body Humanoid Control.&rdquo;</a> CoRL 2024 Workshop.</li>
+  <li>Chen, Y. et al. <a href="https://arxiv.org/abs/2405.19424">&ldquo;Diffusion Policy Attacker: Crafting Adversarial Attacks for Diffusion-based Policies.&rdquo;</a> arXiv 2024.</li>
+  <li>Truong, T. E. et al. <a href="https://arxiv.org/abs/2406.00960">&ldquo;PDP: Physics-Based Character Animation via Diffusion Policy.&rdquo;</a> SIGGRAPH Asia 2024.</li>
+  <li>Nalisnick, E. et al. <a href="https://arxiv.org/abs/1810.09136">&ldquo;Do Deep Generative Models Know What They Don&rsquo;t Know?&rdquo;</a> ICLR 2019.</li>
+  <li>Liu, W. et al. <a href="https://arxiv.org/abs/2010.03759">&ldquo;Energy-based Out-of-Distribution Detection.&rdquo;</a> NeurIPS 2020.</li>
+  <li>Yoon, S. et al. <a href="https://arxiv.org/abs/2407.00626">&ldquo;Maximum Entropy Inverse Reinforcement Learning of Diffusion Models with Energy-Based Models (DxMI).&rdquo;</a> NeurIPS 2024.</li>
+  <li>Agia, C. et al. <a href="https://arxiv.org/abs/2410.04640">&ldquo;Unpacking Failure Modes of Generative Policies: Runtime Monitoring of Consistency and Progress (Sentinel).&rdquo;</a> CoRL 2024.</li>
+  <li><a href="https://arxiv.org/abs/2503.08558">&ldquo;Can We Detect Failures Without Failure Data? Uncertainty-Aware Runtime Failure Detection for Imitation Learning Policies (FAIL-Detect).&rdquo;</a> RSS 2025.</li>
+  <li>Gu, Q. et al. <a href="https://arxiv.org/abs/2506.09937">&ldquo;SAFE: Multitask Failure Detection for Vision-Language-Action Models.&rdquo;</a> NeurIPS 2025.</li>
+  <li><a href="https://arxiv.org/abs/2510.09459">&ldquo;FIPER: Generalizable Failure Prediction for Robot Policies from Observation and Action Uncertainty.&rdquo;</a> NeurIPS 2025.</li>
+  <li>Lakshminarayanan, B., Pritzel, A. &amp; Blundell, C. <a href="https://arxiv.org/abs/1612.01474">&ldquo;Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles.&rdquo;</a> NeurIPS 2017.</li>
+  <li>Ren, A. Z. et al. <a href="https://arxiv.org/abs/2307.01928">&ldquo;Robots That Ask For Help: Uncertainty Alignment for Large Language Model Planners (KnowNo).&rdquo;</a> CoRL 2023.</li>
+  <li>Du, Y., Li, S. &amp; Mordatch, I. <a href="https://arxiv.org/abs/2004.06030">&ldquo;Compositional Visual Generation with Energy Based Models.&rdquo;</a> NeurIPS 2020.</li>
+  <li>Du, Y. et al. <a href="https://arxiv.org/abs/2302.11552">&ldquo;Reduce, Reuse, Recycle: Compositional Generation with Energy-Based Diffusion Models and MCMC.&rdquo;</a> ICML 2023.</li>
+  <li>Luo, Y. &amp; Du, Y. <a href="https://arxiv.org/abs/2407.06169">&ldquo;Potential Based Diffusion Motion Planning.&rdquo;</a> ICML 2024.</li>
+  <li>Xiao, W. et al. <a href="https://arxiv.org/abs/2306.00148">&ldquo;SafeDiffuser: Safe Planning with Diffusion Probabilistic Models.&rdquo;</a> arXiv 2023.</li>
+  <li><a href="https://arxiv.org/abs/2504.08661">&ldquo;Safe Flow Matching: Robot Motion Planning with Control Barrier Functions.&rdquo;</a> arXiv 2025.</li>
+  <li>Feng, Z. et al. <a href="https://arxiv.org/abs/2405.04235">&ldquo;LTLDoG: Satisfying Temporally-Extended Symbolic Constraints for Safe Diffusion-based Planning.&rdquo;</a> RA-L 2024.</li>
+  <li><a href="https://arxiv.org/abs/2409.19190">&ldquo;RAIL: Reachability-Aided Imitation Learning for Safe Policy Execution.&rdquo;</a> ICRA 2025.</li>
+  <li>Hsu, K.-C., Hu, H. &amp; Fisac, J. F. <a href="https://arxiv.org/abs/2309.05837">&ldquo;The Safety Filter: A Unified View of Safety-Critical Control in Autonomous Systems.&rdquo;</a> Annual Review of Control, Robotics, and Autonomous Systems, 2024.</li>
+  <li>Ames, A. D. et al. <a href="https://arxiv.org/abs/1903.11199">&ldquo;Control Barrier Functions: Theory and Applications.&rdquo;</a> ECC 2019.</li>
+  <li>Yang, L. et al. <a href="https://arxiv.org/abs/2404.07956">&ldquo;Lyapunov-Stable Neural Control for State and Output Feedback: A Novel Formulation.&rdquo;</a> ICML 2024.</li>
+  <li>He, T. et al. <a href="https://arxiv.org/abs/2401.17583">&ldquo;Agile But Safe: Learning Collision-Free High-Speed Legged Locomotion (ABS).&rdquo;</a> RSS 2024.</li>
+  <li><a href="https://arxiv.org/abs/2412.09989">&ldquo;Observation-Conditioned Reachability Safety Filters for Legged Robots in Unknown Environments.&rdquo;</a> arXiv 2024.</li>
+  <li><a href="https://arxiv.org/abs/2508.11129">&ldquo;Geometry-Aware Predictive Safety Filters on Humanoids: From Poisson Safety Functions to CBF-Constrained MPC.&rdquo;</a> 2025 (Ames lab).</li>
+  <li><a href="https://arxiv.org/abs/2310.04828">&ldquo;Guardians as You Fall: Active Mode Transition for Safe Falling.&rdquo;</a> arXiv 2023.</li>
+  <li>Tevet, G. et al. <a href="https://arxiv.org/abs/2410.03441">&ldquo;CLoSD: Closing the Loop between Simulation and Diffusion for Multi-Task Character Control.&rdquo;</a> ICLR 2025.</li>
+  <li><a href="https://arxiv.org/abs/2603.23983">&ldquo;SafeFlow: Safety-Gated Text-Driven Whole-Body Humanoid Control via Physics-Guided Rectified Flow.&rdquo;</a> arXiv 2026.</li>
+  <li>He, T. et al. <a href="https://arxiv.org/abs/2406.08858">&ldquo;OmniH2O: Universal and Dexterous Human-to-Humanoid Whole-Body Teleoperation and Learning.&rdquo;</a> CoRL 2024.</li>
+  <li>He, T. et al. <a href="https://arxiv.org/abs/2410.21229">&ldquo;HOVER: Versatile Neural Whole-Body Controller for Humanoid Robots.&rdquo;</a> ICRA 2025.</li>
+  <li>Ji, M. et al. <a href="https://arxiv.org/abs/2412.13196">&ldquo;ExBody2: Advanced Expressive Humanoid Whole-Body Control.&rdquo;</a> RSS 2025.</li>
+  <li>Liao, Q. et al. <a href="https://arxiv.org/abs/2508.08241">&ldquo;BeyondMimic: From Motion Tracking to Versatile Humanoid Control via Guided Diffusion.&rdquo;</a> arXiv 2025.</li>
+  <li><a href="https://arxiv.org/abs/2503.11801">&ldquo;Diffuse-CLoC: Guided Diffusion for Physics-Based Character Look-Ahead Control.&rdquo;</a> SIGGRAPH 2025.</li>
+  <li>Huang, X. et al. <a href="https://arxiv.org/abs/2404.19264">&ldquo;DiffuseLoco: Real-Time Legged Locomotion Control with Diffusion from Offline Datasets.&rdquo;</a> CoRL 2024.</li>
+  <li>NVIDIA. <a href="https://arxiv.org/abs/2509.14353">&ldquo;DreamControl: Human-Inspired Whole-Body Humanoid Control for Scene Interaction via Guided Diffusion.&rdquo;</a> 2025.</li>
+</ol>
+</div>
+
+<div class="tags">
+  <span>robotics</span><span>diffusion-policy</span><span>flow-matching</span><span>world-models</span><span>energy-based-models</span><span>humanoids</span><span>safety</span><span>ood-detection</span><span>reinforcement-learning</span>
+</div>
+
+</div>
+<footer class="site-foot">
+  <span>&copy; 2026 Alice Xu</span>
+  <span><a href="../../">Field Notes</a> &middot; built by hand</span>
+</footer>
+</body>
+</html>
